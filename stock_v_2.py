@@ -1,6 +1,6 @@
 ##################################################
 #
-#          stock_v_1 program
+#          stock_v_2 program
 #
 ##################################################
 
@@ -14,14 +14,14 @@
 # - (https://finance.naver.com/sise/lastsearch2.nhn)
 #
 # 종목 선택 및 DB 저장 
-# - stock_v1 테이블 status 컬럼 값이 모두 I가 없는 경우
+# - stock_v2 테이블 status 컬럼 값이 모두 C 인 경우
 # - 등락율 ▲ 
 # - 현재가 100,000 이하
 # - 위 조건 중 검색률 ▲ 순으로 Filter
 # - Filter 된 종목 status I 상태로 DB 저장
 #
 # 저장 종목 모니터링 및 매도/매수 알림 
-# - stock_v1 테이블 status 컬럼 값이 I 인 종목 대상
+# - stock_v2 테이블 status 컬럼 값이 I 인 종목 대상
 # - 배치 주기에 따른 종목별 상세 데이타 모니터링 
 # - 등락율 +1.5% , -1% 시 매매 (status C 상태로 변경)
 # - 매도/매수 처리 시 telegram 알림 전송
@@ -36,7 +36,7 @@
 #   create table stock (init_amt text ,current_amt text);
 #   insert into stock (init_amt,current_amt) values ('330000','330000');
 #
-#   create table stock_v1 (id integer primary key autoincrement, code text, item text, status text
+#   create table stock_v2 (id integer primary key autoincrement, code text, item text, status text
 #       , purchase_current_amt text , sell_current_amt text, purchase_count text
 #       , purchase_amt text , sell_amt text, search_rate text, yesterday_rate text, up_down_rate text
 #       , ps_cnt text, c_amt text, h_amt text, l_amt, crt_dttm text, chg_dttm text);
@@ -68,7 +68,7 @@ PROXY_DICT = {
               "https" : HTTPS_PROXY
             }
 # VERSION TABLE
-STOCK_VERSION_TABLE = 'stock_v1'
+STOCK_VERSION_TABLE = 'stock_v2'
 # 선택 종목 금액 MAX
 CURRENT_AMOUNT_MAX = 100000
 # 프로그램 실행 주기 
@@ -82,6 +82,8 @@ BASE_URL = "https://finance.naver.com"
 # crawling url
 CRAWLING_TOP_LIST_URL = "/sise/lastsearch2.nhn"
 CRAWLING_ITEM_URL = "/item/main.nhn?code="
+# add thistime parameter value ex)20200722142449 -> datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+CRAWLING_ITEM_TIME_URL = "/item/sise_time.nhn?page=1&code="  
 
 # sell rate up
 SELL_UP_RATE = 1.5
@@ -314,12 +316,14 @@ def main_process():
 ##################################################
 
 ##################################################
+# if __name__ == '__main__':
+#     scheduler = BlockingScheduler()
+#     scheduler.add_job(main_process, 'interval', seconds=INTERVAL_SECONDS)
+#     main_process()
+#     try:
+#         scheduler.start()
+#     except Exception as err:
+#         print(err)
 if __name__ == '__main__':
-    scheduler = BlockingScheduler()
-    scheduler.add_job(main_process, 'interval', seconds=INTERVAL_SECONDS)
-    main_process()
-    try:
-        scheduler.start()
-    except Exception as err:
-        print(err)
+    print(datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
 ##################################################
