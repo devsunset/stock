@@ -18,7 +18,13 @@
 # - 등락율 ▲ 
 # - 현재가 100,000 이하
 # - 위 조건 중 검색률 ▲ 순으로 Filter
-# - Filter 된 종목 status I 상태로 DB 저장
+# - Filter 된 종목 status P 상태로 DB 저장
+#
+# 임시 저장 좀목 시세별 시세 모니터링 
+# - status 컬럼 값이 P 인 종목 대상 모니터링
+# - 일별 / 시세별 데이타  거래량 모니터링 분석
+# - 분석된 결과를 토대로 해당 종목의 상태를 I 혹은 X로 갱신
+# - To-Do 분석 처리 알고리즘 study
 #
 # 저장 종목 모니터링 및 매도/매수 알림 
 # - stock_v2 테이블 status 컬럼 값이 I 인 종목 대상
@@ -38,8 +44,7 @@
 #
 #   create table stock_v2 (id integer primary key autoincrement, code text, item text, status text
 #       , purchase_current_amt text , sell_current_amt text, purchase_count text
-#       , purchase_amt text , sell_amt text, search_rate text, yesterday_rate text, up_down_rate text
-#       , ps_cnt text, c_amt text, h_amt text, l_amt, crt_dttm text, chg_dttm text);
+#       , purchase_amt text , sell_amt text, crt_dttm text, chg_dttm text);
 #
 # > telegram setting
 #   BotFather -> /newbot -> devsunetstock -> devsunsetstock_bot - > get api key 
@@ -72,7 +77,7 @@ STOCK_VERSION_TABLE = 'stock_v2'
 # 선택 종목 금액 MAX
 CURRENT_AMOUNT_MAX = 100000
 # 프로그램 실행 주기 
-INTERVAL_SECONDS = 30
+INTERVAL_SECONDS = 60
 # 프로그램 시작 시간
 START_TIME = "090000"
 # 프로그램 종료 시간
@@ -82,9 +87,8 @@ BASE_URL = "https://finance.naver.com"
 # crawling url
 CRAWLING_TOP_LIST_URL = "/sise/lastsearch2.nhn"
 CRAWLING_ITEM_URL = "/item/main.nhn?code="
-# add thistime parameter value ex)20200722142449 -> datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+CRAWLING_ITEM_DAY_URL = "/item/sise_day.nhn?page=1&code="
 CRAWLING_ITEM_TIME_URL = "/item/sise_time.nhn?page=1&code="  
-
 # sell rate up
 SELL_UP_RATE = 1.5
 # sell rate down
@@ -108,7 +112,7 @@ def searchAllData(table):
         if table == 'stock' :
             cur.execute("select * from "+table)
         else:
-            cur.execute("select * from "+table+ " where status = 'I' ")
+            cur.execute("select * from "+table+ " where status IN ('I','P') ")
         columns = list(map(lambda x: x[0], cur.description))
         result = cur.fetchall()    
     return columns,result
@@ -175,6 +179,55 @@ def getStocInfoTopList():
     #         print("추천 종목 ",idx,":",data)
     return filterData
 
+# item day trend data crawling
+def getStocItemDayInfo(stock_code):
+    log('--- stock item day trend ---'+stock_code,"N")
+    resp = None
+    if PROXY_USE_FLAG :
+        resp = requests.get(BASE_URL+CRAWLING_ITEM_DAY_URL+stock_code,proxies=PROXY_DICT)       
+    else:
+        resp = requests.get(BASE_URL+CRAWLING_ITEM_DAY_URL+stock_code)       
+
+    html = resp.text
+
+    # 종목 일별 시세 구하기 
+    bs = bs4.BeautifulSoup(html, 'html.parser')
+    infoTable = bs.find("table",{"class":"type2"})
+    infoData = []
+    for a in infoTable.find_all("tr"):
+        infolist = []
+        for b in a.find_all("td"): 
+            info = b.get_text().replace("\n","").replace("\t","")
+            infolist.append(info)
+            if len(infolist) == 7:
+                infoData.append(infolist)
+                print(infolist)
+                
+
+# item time trend data crawling
+def getStocItemTimeInfo(stock_code):
+    log('--- stock item time trend ---'+stock_code,"N")
+    resp = None
+    if PROXY_USE_FLAG :
+        resp = requests.get(BASE_URL+CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=PROXY_DICT)       
+    else:
+        resp = requests.get(BASE_URL+CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"))       
+
+    html = resp.text
+
+    # 종목 시간별 시세 구하기 
+    bs = bs4.BeautifulSoup(html, 'html.parser')
+    infoTable = bs.find("table",{"class":"type2"})
+    infoData = []
+    for a in infoTable.find_all("tr"):
+        infolist = []
+        for b in a.find_all("td"): 
+            info = b.get_text().replace("\n","").replace("\t","")
+            infolist.append(info)
+            if len(infolist) == 7:
+                infoData.append(infolist)
+                print(infolist)
+
 # stock info deatail data crawling
 def getStocInfoData(data,status):
     resp = None
@@ -205,17 +258,24 @@ def getStocInfoData(data,status):
     
     print(item_text)
 
-    if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) >= SELL_UP_RATE) :
-        sellStock(data,current_Amt)
-        log('▲ sell : '+item_text,"Y")
+    if data[3] == "I" :
+        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) >= SELL_UP_RATE) :
+            sellStock(data,current_Amt)
+            log('▲ sell : '+item_text,"Y")
 
-    if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) <= SELL_DOWN_RATE) :
-        sellStock(data,current_Amt)
-        log('▼ sell : '+item_text,"Y")
+        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) <= SELL_DOWN_RATE) :
+            sellStock(data,current_Amt)
+            log('▼ sell : '+item_text,"Y")
 
-    if status == "CLOSE":
-        sellStock(data,current_Amt)
-        log('close market - sell : '+item_text,"Y")
+        if status == "CLOSE":
+            sellStock(data,current_Amt)
+            log('close market - sell : '+item_text,"Y")
+    elif data[3] == "P":
+        getStocItemDayInfo(data[1])
+        getStocItemTimeInfo(data[1])
+        # To-Do 위의 Day , Time 분석 정보를 기반으로 종목 상태 I(매수) 및 X(버림)으로 변경
+        changeStockItemStatus(data,"I",current_Amt)
+        
     
 # pusrchase stock
 def purchaseStock(stockData):
@@ -231,16 +291,24 @@ def purchaseStock(stockData):
                         purchase_amt = purchase_count * int(data[4])  
 
                         sql = """insert into """+STOCK_VERSION_TABLE+""" (code, item, status
-                        , purchase_current_amt , purchase_count, purchase_amt,  search_rate, yesterday_rate
-                        , up_down_rate, ps_cnt, c_amt, h_amt, l_amt, crt_dttm) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+                        , purchase_current_amt , purchase_count, purchase_amt, crt_dttm) values (?, ?, ?, ?, ?, ?, ?)"""
 
-                        sqlParam = (data[1], data[2], "I"
-                        , data[4] , purchase_count, purchase_amt,  data[3], data[5]
-                        , data[6], data[7], data[8], data[9], data[10], crt_dttm)
+                        sqlParam = (data[1], data[2], "P" , data[4] , purchase_count, purchase_amt, crt_dttm)
 
                         executeDB(sql,sqlParam)
 
             log('--- stock info save ---',"N")
+
+# change stock item status
+def changeStockItemStatus(stockData,status,current_Amt):
+    current_Amt = current_Amt.replace(",","")
+    chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")    
+    fundCol,fundData = searchAllData('stock')      
+    purchase_count = math.floor(int(fundData[0][1])/int(current_Amt))
+    purchase_amt = purchase_count * int(current_Amt)  
+    sql = "update "+STOCK_VERSION_TABLE+" set status= ?, purchase_current_amt =? , purchase_count = ?, purchase_amt = ?, chg_dttm = ? where id = ?"
+    sqlParam =  (status , current_Amt , purchase_count, purchase_amt , chg_dttm , stockData[0])
+    executeDB(sql,sqlParam)            
            
 # sell stock
 def sellStock(stockData,current_Amt):
@@ -316,14 +384,13 @@ def main_process():
 ##################################################
 
 ##################################################
-# if __name__ == '__main__':
-#     scheduler = BlockingScheduler()
-#     scheduler.add_job(main_process, 'interval', seconds=INTERVAL_SECONDS)
-#     main_process()
-#     try:
-#         scheduler.start()
-#     except Exception as err:
-#         print(err)
 if __name__ == '__main__':
-    print(datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+    scheduler = BlockingScheduler()
+    scheduler.add_job(main_process, 'interval', seconds=INTERVAL_SECONDS)
+    main_process()
+    try:
+        scheduler.start()
+    except Exception as err:
+        print(err)
 ##################################################
+
