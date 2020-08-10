@@ -1,6 +1,6 @@
 ##################################################
 #
-#          stock_v_2 program
+#          stock_v_3 program
 #
 ##################################################
 
@@ -14,7 +14,7 @@
 # - (https://finance.naver.com/sise/lastsearch2.nhn)
 #
 # 종목 선택 및 DB 저장 
-# - stock_v2 테이블 status 컬럼 값이 모두 C 인 경우
+# - stock_v3 테이블 status 컬럼 값이 모두 C 인 경우
 # - 등락율 ▲ 
 # - 현재가 100,000 이하
 # - 위 조건 중 검색률 ▲ 순으로 Filter
@@ -27,7 +27,7 @@
 # - To-Do 분석 처리 알고리즘 study
 #
 # 저장 종목 모니터링 및 매도/매수 알림 
-# - stock_v2 테이블 status 컬럼 값이 I 인 종목 대상
+# - stock_v3 테이블 status 컬럼 값이 I 인 종목 대상
 # - 배치 주기에 따른 종목별 상세 데이타 모니터링 
 # - 등락율 +1.5% , -1% 시 매매 (status C 상태로 변경)
 # - 매도/매수 처리 시 telegram 알림 전송
@@ -39,10 +39,10 @@
 # > create table schema
 #   - sqlite3 stock.db
 # 
-#   create table stock (init_amt text ,current_amt text);
-#   insert into stock (init_amt,current_amt) values ('330000','330000');
+#   create table stock_v3_meta (init_amt text ,current_amt text);
+#   insert into stock_v3_meta (init_amt,current_amt) values ('300000','300000');
 #
-#   create table stock_v2 (id integer primary key autoincrement, code text, item text, status text
+#   create table stock_v3 (id integer primary key autoincrement, code text, item text, status text
 #       , purchase_current_amt text , sell_current_amt text, purchase_count text
 #       , purchase_amt text , sell_amt text, crt_dttm text, chg_dttm text);
 #
@@ -73,7 +73,8 @@ PROXY_DICT = {
               "https" : HTTPS_PROXY
             }
 # VERSION TABLE
-STOCK_VERSION_TABLE = 'stock_v2'
+STOCK_VERSION_META_TABLE = 'stock_v3_meta'
+STOCK_VERSION_TABLE = 'stock_v3'
 # 선택 종목 금액 MAX
 CURRENT_AMOUNT_MAX = 100000
 # 프로그램 실행 주기 
@@ -109,7 +110,7 @@ def searchAllData(table):
     conn = sqlite3.connect("stock.db")
     with conn:
         cur = conn.cursor()   
-        if table == 'stock' :
+        if table == STOCK_VERSION_META_TABLE :
             cur.execute("select * from "+table)
         else:
             cur.execute("select * from "+table+ " where status IN ('I','P') ")
@@ -280,7 +281,7 @@ def getStocInfoData(data,status):
 # pusrchase stock
 def purchaseStock(stockData):
     if len(stockData) > 0 :
-       fundCol,fundData = searchAllData('stock')         
+       fundCol,fundData = searchAllData(STOCK_VERSION_META_TABLE)         
        crt_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
        nowTime = int(datetime.datetime.now().strftime("%H%M%S"))       
        if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
@@ -303,7 +304,7 @@ def purchaseStock(stockData):
 def changeStockItemStatus(stockData,status,current_Amt):
     current_Amt = current_Amt.replace(",","")
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")    
-    fundCol,fundData = searchAllData('stock')      
+    fundCol,fundData = searchAllData(STOCK_VERSION_META_TABLE)      
     purchase_count = math.floor(int(fundData[0][1])/int(current_Amt))
     purchase_amt = purchase_count * int(current_Amt)  
     sql = "update "+STOCK_VERSION_TABLE+" set status= ?, purchase_current_amt =? , purchase_count = ?, purchase_amt = ?, chg_dttm = ? where id = ?"

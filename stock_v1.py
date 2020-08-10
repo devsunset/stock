@@ -33,8 +33,8 @@
 # > create table schema
 #   - sqlite3 stock.db
 # 
-#   create table stock (init_amt text ,current_amt text);
-#   insert into stock (init_amt,current_amt) values ('330000','330000');
+#   create table stock_v1_meta (init_amt text ,current_amt text);
+#   insert into stock_v1_meta (init_amt,current_amt) values ('300000','300000');
 #
 #   create table stock_v1 (id integer primary key autoincrement, code text, item text, status text
 #       , purchase_current_amt text , sell_current_amt text, purchase_count text
@@ -68,6 +68,7 @@ PROXY_DICT = {
               "https" : HTTPS_PROXY
             }
 # VERSION TABLE
+STOCK_VERSION_META_TABLE = 'stock_v1_meta'
 STOCK_VERSION_TABLE = 'stock_v1'
 # 선택 종목 금액 MAX
 CURRENT_AMOUNT_MAX = 100000
@@ -103,7 +104,7 @@ def searchAllData(table):
     conn = sqlite3.connect("stock.db")
     with conn:
         cur = conn.cursor()   
-        if table == 'stock' :
+        if table == STOCK_VERSION_META_TABLE :
             cur.execute("select * from "+table)
         else:
             cur.execute("select * from "+table+ " where status = 'I' ")
@@ -218,7 +219,7 @@ def getStocInfoData(data,status):
 # pusrchase stock
 def purchaseStock(stockData):
     if len(stockData) > 0 :
-       fundCol,fundData = searchAllData('stock')         
+       fundCol,fundData = searchAllData(STOCK_VERSION_META_TABLE)         
        crt_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
        nowTime = int(datetime.datetime.now().strftime("%H%M%S"))       
        if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
