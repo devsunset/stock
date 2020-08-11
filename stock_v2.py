@@ -1,6 +1,6 @@
 ##################################################
 #
-#          stock_v_2 program
+#          stock_v2 program
 #
 ##################################################
 
@@ -16,20 +16,19 @@
 # 종목 선택 및 DB 저장 
 # - stock_v2 테이블 status 컬럼 값이 모두 C 인 경우
 # - 등락율 ▲ 
-# - 현재가 100,000 이하
+# - 현재가 CURRENT_AMOUNT_MAX 이하
 # - 위 조건 중 검색률 ▲ 순으로 Filter
 # - Filter 된 종목 status P 상태로 DB 저장
 #
 # 임시 저장 좀목 시세별 시세 모니터링 
 # - status 컬럼 값이 P 인 종목 대상 모니터링
 # - 일별 / 시세별 데이타  거래량 모니터링 분석
-# - 분석된 결과를 토대로 해당 종목의 상태를 I 혹은 X로 갱신
-# - To-Do 분석 처리 알고리즘 study
+# - 종목의 상태를 I로 저장
 #
 # 저장 종목 모니터링 및 매도/매수 알림 
 # - stock_v2 테이블 status 컬럼 값이 I 인 종목 대상
 # - 배치 주기에 따른 종목별 상세 데이타 모니터링 
-# - 등락율 +1.5% , -1% 시 매매 (status C 상태로 변경)
+# - 등락율 SELL_UP_RATE , SELL_DOWN_RATE 시 매매 (status C 상태로 변경)
 # - 매도/매수 처리 시 telegram 알림 전송
 #
 ##################################################
@@ -39,8 +38,8 @@
 # > create table schema
 #   - sqlite3 stock.db
 # 
-#   create table stock_v2_meta (init_amt text ,current_amt text);
-#   insert into stock_v2_meta (init_amt,current_amt) values ('300000','300000');
+#   create table stock_v2_meta (current_amt text);
+#   insert into stock_v2_meta (current_amt) values ('500000');
 #
 #   create table stock_v2 (id integer primary key autoincrement, code text, item text, status text
 #       , purchase_current_amt text , sell_current_amt text, purchase_count text
@@ -64,10 +63,10 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 # constant
 
 # proxy use
-PROXY_USE_FLAG = True
+PROXY_USE_FLAG = False
 # Proxy info
-HTTP_PROXY  = "http://70.10.15.10:8080"
-HTTPS_PROXY = "http://70.10.15.10:8080"
+HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
+HTTPS_PROXY = "https://xxx.xxx.xxx.xxx:xxxx"
 PROXY_DICT = { 
               "http"  : HTTP_PROXY, 
               "https" : HTTPS_PROXY
@@ -91,7 +90,7 @@ CRAWLING_ITEM_URL = "/item/main.nhn?code="
 CRAWLING_ITEM_DAY_URL = "/item/sise_day.nhn?page=1&code="
 CRAWLING_ITEM_TIME_URL = "/item/sise_time.nhn?page=1&code="  
 # sell rate up
-SELL_UP_RATE = 1.5
+SELL_UP_RATE = 3
 # sell rate down
 SELL_DOWN_RATE = -1
 # telegram
@@ -150,7 +149,6 @@ def getStocInfoTopList():
             infoData.append(infolist)
     # print(infoData)
 
-    # 종목 코드 구하기 (To-Do 종목 데이타 구할때 href 태그 함께 구할수 없을까 ?)
     bs = bs4.BeautifulSoup(html, 'html.parser')
     tags = bs.select('a') 
     codeData = []
@@ -202,8 +200,7 @@ def getStocItemDayInfo(stock_code):
             infolist.append(info)
             if len(infolist) == 7:
                 infoData.append(infolist)
-                print(infolist)
-                
+                print(infolist)                
 
 # item time trend data crawling
 def getStocItemTimeInfo(stock_code):
@@ -257,7 +254,7 @@ def getStocInfoData(data,status):
     item_text +=" 등락율 : "+ fill_str_space(str(round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2))+"%")
     item_text +=" 수익금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]) - int(data[7]),',')))
     
-    print(item_text)
+    print(item_text)   
 
     if data[3] == "I" :
         if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) >= SELL_UP_RATE) :
@@ -272,11 +269,9 @@ def getStocInfoData(data,status):
             sellStock(data,current_Amt)
             log('close market - sell : '+item_text,"Y")
     elif data[3] == "P":
-        getStocItemDayInfo(data[1])
-        getStocItemTimeInfo(data[1])
-        # To-Do 위의 Day , Time 분석 정보를 기반으로 종목 상태 I(매수) 및 X(버림)으로 변경
-        changeStockItemStatus(data,"I",current_Amt)
-        
+        getStocItemDayInfo(data[1])     
+        getStocItemTimeInfo(data[1])    
+        changeStockItemStatus(data,"I",current_Amt)        
     
 # pusrchase stock
 def purchaseStock(stockData):
@@ -287,8 +282,8 @@ def purchaseStock(stockData):
        if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
             if len(fundData) > 0 :
                 for idx, data in enumerate(stockData):
-                    if int(fundData[0][1]) >= int((data[4])) :
-                        purchase_count = math.floor(int(fundData[0][1])/int(data[4]))
+                    if int(fundData[0][0]) >= int((data[4])) :
+                        purchase_count = math.floor(int(fundData[0][0])/int(data[4]))
                         purchase_amt = purchase_count * int(data[4])  
 
                         sql = """insert into """+STOCK_VERSION_TABLE+""" (code, item, status
@@ -305,7 +300,7 @@ def changeStockItemStatus(stockData,status,current_Amt):
     current_Amt = current_Amt.replace(",","")
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")    
     fundCol,fundData = searchAllData(STOCK_VERSION_META_TABLE)      
-    purchase_count = math.floor(int(fundData[0][1])/int(current_Amt))
+    purchase_count = math.floor(int(fundData[0][0])/int(current_Amt))
     purchase_amt = purchase_count * int(current_Amt)  
     sql = "update "+STOCK_VERSION_TABLE+" set status= ?, purchase_current_amt =? , purchase_count = ?, purchase_amt = ?, chg_dttm = ? where id = ?"
     sqlParam =  (status , current_Amt , purchase_count, purchase_amt , chg_dttm , stockData[0])

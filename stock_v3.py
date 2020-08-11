@@ -1,6 +1,6 @@
 ##################################################
 #
-#          stock_v_3 program
+#          stock_v3 program
 #
 ##################################################
 
@@ -16,20 +16,19 @@
 # 종목 선택 및 DB 저장 
 # - stock_v3 테이블 status 컬럼 값이 모두 C 인 경우
 # - 등락율 ▲ 
-# - 현재가 100,000 이하
+# - 현재가 CURRENT_AMOUNT_MAX 이하
 # - 위 조건 중 검색률 ▲ 순으로 Filter
 # - Filter 된 종목 status P 상태로 DB 저장
 #
 # 임시 저장 좀목 시세별 시세 모니터링 
 # - status 컬럼 값이 P 인 종목 대상 모니터링
 # - 일별 / 시세별 데이타  거래량 모니터링 분석
-# - 분석된 결과를 토대로 해당 종목의 상태를 I 혹은 X로 갱신
-# - To-Do 분석 처리 알고리즘 study
+# - 분석된 결과를 토대로 해당 종목의 상태를 I 갱신 후 임시 항목 삭제
 #
 # 저장 종목 모니터링 및 매도/매수 알림 
 # - stock_v3 테이블 status 컬럼 값이 I 인 종목 대상
 # - 배치 주기에 따른 종목별 상세 데이타 모니터링 
-# - 등락율 +1.5% , -1% 시 매매 (status C 상태로 변경)
+# - 등락율 SELL_UP_RATE , SELL_DOWN_RATE 시 매매 (status C 상태로 변경)
 # - 매도/매수 처리 시 telegram 알림 전송
 #
 ##################################################
@@ -39,8 +38,8 @@
 # > create table schema
 #   - sqlite3 stock.db
 # 
-#   create table stock_v3_meta (init_amt text ,current_amt text);
-#   insert into stock_v3_meta (init_amt,current_amt) values ('300000','300000');
+#   create table stock_v3_meta (current_amt text);
+#   insert into stock_v3_meta (current_amt) values ('500000');
 #
 #   create table stock_v3 (id integer primary key autoincrement, code text, item text, status text
 #       , purchase_current_amt text , sell_current_amt text, purchase_count text
@@ -64,10 +63,10 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 # constant
 
 # proxy use
-PROXY_USE_FLAG = True
+PROXY_USE_FLAG = False
 # Proxy info
-HTTP_PROXY  = "http://70.10.15.10:8080"
-HTTPS_PROXY = "http://70.10.15.10:8080"
+HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
+HTTPS_PROXY = "https://xxx.xxx.xxx.xxx:xxxx"
 PROXY_DICT = { 
               "http"  : HTTP_PROXY, 
               "https" : HTTPS_PROXY
@@ -78,7 +77,7 @@ STOCK_VERSION_TABLE = 'stock_v3'
 # 선택 종목 금액 MAX
 CURRENT_AMOUNT_MAX = 100000
 # 프로그램 실행 주기 
-INTERVAL_SECONDS = 60
+INTERVAL_SECONDS = 20
 # 프로그램 시작 시간
 START_TIME = "090000"
 # 프로그램 종료 시간
@@ -93,7 +92,9 @@ CRAWLING_ITEM_TIME_URL = "/item/sise_time.nhn?page=1&code="
 # sell rate up
 SELL_UP_RATE = 1.5
 # sell rate down
-SELL_DOWN_RATE = -1
+SELL_DOWN_RATE = -0.5
+# recent day unit
+RECENT_DAY_UNIT = 3
 # telegram
 TELEGRAM_TOKEN = '1280370073:AAHFwcNtcS9pvqF29zJJKEOY0SvnW8NH1do'
 bot = telegram.Bot(token = TELEGRAM_TOKEN)
@@ -119,11 +120,14 @@ def searchAllData(table):
     return columns,result
 
 # db table insert/update/delete
-def executeDB(sqlText,sqlParam):
+def executeDB(sqlText,sqlParam=None):
     conn = sqlite3.connect("stock.db")
     cur = conn.cursor()
     sql = sqlText
-    cur.execute(sql, sqlParam)
+    if sqlParam == None:
+        cur.execute(sql)
+    else:
+        cur.execute(sql, sqlParam)
     conn.commit()        
     conn.close()
 
@@ -150,7 +154,6 @@ def getStocInfoTopList():
             infoData.append(infolist)
     # print(infoData)
 
-    # 종목 코드 구하기 (To-Do 종목 데이타 구할때 href 태그 함께 구할수 없을까 ?)
     bs = bs4.BeautifulSoup(html, 'html.parser')
     tags = bs.select('a') 
     codeData = []
@@ -182,7 +185,7 @@ def getStocInfoTopList():
 
 # item day trend data crawling
 def getStocItemDayInfo(stock_code):
-    log('--- stock item day trend ---'+stock_code,"N")
+    # log('--- stock item day trend ---'+stock_code,"N")
     resp = None
     if PROXY_USE_FLAG :
         resp = requests.get(BASE_URL+CRAWLING_ITEM_DAY_URL+stock_code,proxies=PROXY_DICT)       
@@ -202,12 +205,13 @@ def getStocItemDayInfo(stock_code):
             infolist.append(info)
             if len(infolist) == 7:
                 infoData.append(infolist)
-                print(infolist)
-                
+                # print(infolist)   
+
+    return infoData             
 
 # item time trend data crawling
 def getStocItemTimeInfo(stock_code):
-    log('--- stock item time trend ---'+stock_code,"N")
+    # log('--- stock item time trend ---'+stock_code,"N")
     resp = None
     if PROXY_USE_FLAG :
         resp = requests.get(BASE_URL+CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=PROXY_DICT)       
@@ -227,7 +231,9 @@ def getStocItemTimeInfo(stock_code):
             infolist.append(info)
             if len(infolist) == 7:
                 infoData.append(infolist)
-                print(infolist)
+                # print(infolist)
+    
+    return infoData
 
 # stock info deatail data crawling
 def getStocInfoData(data,status):
@@ -247,19 +253,19 @@ def getStocInfoData(data,status):
         arrow = "▼"
         current_Amt = bs.find("em",{"class":"no_down"}).find("span",{"class":"blind"}).get_text()
 
-    item_text = arrow+" : 종목 : "+fill_str_space(data[2],25) 
-    item_text +=" 구매수 : "+fill_str_space(data[6])
-    item_text +=" 구매가 : "+fill_str_space(format(int(data[4]), ','))
-    item_text +=" 현재가 : "+fill_str_space(current_Amt)
-    item_text +=" 등락가 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))-int(data[4]),',')))
-    item_text +=" 구매금액 : "+fill_str_space(str(format(int(data[7]), ',')))
-    item_text +=" 현재금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]),',')))
-    item_text +=" 등락율 : "+ fill_str_space(str(round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2))+"%")
-    item_text +=" 수익금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]) - int(data[7]),',')))
-    
-    print(item_text)
-
     if data[3] == "I" :
+        item_text = arrow+" : 종목 : "+fill_str_space(data[2],25) 
+        item_text +=" 구매수 : "+fill_str_space(data[6])
+        item_text +=" 구매가 : "+fill_str_space(format(int(data[4]), ','))
+        item_text +=" 현재가 : "+fill_str_space(current_Amt)
+        item_text +=" 등락가 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))-int(data[4]),',')))
+        item_text +=" 구매금액 : "+fill_str_space(str(format(int(data[7]), ',')))
+        item_text +=" 현재금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]),',')))
+        item_text +=" 등락율 : "+ fill_str_space(str(round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2))+"%")
+        item_text +=" 수익금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]) - int(data[7]),',')))
+
+        log(item_text,"N")
+
         if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) >= SELL_UP_RATE) :
             sellStock(data,current_Amt)
             log('▲ sell : '+item_text,"Y")
@@ -270,16 +276,13 @@ def getStocInfoData(data,status):
 
         if status == "CLOSE":
             sellStock(data,current_Amt)
-            log('close market - sell : '+item_text,"Y")
-    elif data[3] == "P":
-        getStocItemDayInfo(data[1])
-        getStocItemTimeInfo(data[1])
-        # To-Do 위의 Day , Time 분석 정보를 기반으로 종목 상태 I(매수) 및 X(버림)으로 변경
-        changeStockItemStatus(data,"I",current_Amt)
+            log('close market - sell : '+item_text,"Y")    
+
         
-    
-# pusrchase stock
-def purchaseStock(stockData):
+    return current_Amt
+
+# temp pusrchase stock
+def tempPurchaseStock(stockData):
     if len(stockData) > 0 :
        fundCol,fundData = searchAllData(STOCK_VERSION_META_TABLE)         
        crt_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -287,30 +290,104 @@ def purchaseStock(stockData):
        if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
             if len(fundData) > 0 :
                 for idx, data in enumerate(stockData):
-                    if int(fundData[0][1]) >= int((data[4])) :
-                        purchase_count = math.floor(int(fundData[0][1])/int(data[4]))
-                        purchase_amt = purchase_count * int(data[4])  
+                    if int(fundData[0][0]) >= int((data[4])) :
+                        # purchase_count = math.floor(int(fundData[0][0])/int(data[4]))
+                        # purchase_amt = purchase_count * int(data[4])  
 
-                        sql = """insert into """+STOCK_VERSION_TABLE+""" (code, item, status
-                        , purchase_current_amt , purchase_count, purchase_amt, crt_dttm) values (?, ?, ?, ?, ?, ?, ?)"""
+                        # sql = """insert into """+STOCK_VERSION_TABLE+""" (code, item, status
+                        # , purchase_current_amt , purchase_count, purchase_amt, crt_dttm) values (?, ?, ?, ?, ?, ?, ?)"""
 
-                        sqlParam = (data[1], data[2], "P" , data[4] , purchase_count, purchase_amt, crt_dttm)
+                        # sqlParam = (data[1], data[2], "P" , data[4] , purchase_count, purchase_amt, crt_dttm)
+
+                        sql = """insert into """+STOCK_VERSION_TABLE+""" (code, item, status, crt_dttm) values (?, ?, ?, ?)"""
+                        sqlParam = (data[1], data[2], "P" , crt_dttm)
 
                         executeDB(sql,sqlParam)
 
-            log('--- stock info save ---',"N")
+            log('--- temp stock info save ---',"N")
 
-# change stock item status
-def changeStockItemStatus(stockData,status,current_Amt):
+            # serarch stock version table table data
+            purchaseCol, purchaseData = searchAllData(STOCK_VERSION_TABLE)    
+            # pusrchase stock empty
+            if len(purchaseData) > 0:
+                # stock monitoring
+                stockMonitoring(purchaseData)        
+
+# choice stock           
+def choiceStock(stockData):
+    selectStocks = []
+
+    if len(stockData) > 0 :
+    # ----------------------------------------------------------------
+    # Filter Condition
+        # 일별 시세 종가 값이 최근 RECENT_DAY_UNIT 일 동안 증가 중인 항목
+        # 시간별 시세 체결가 값이 어제의 종가 보다 높은 항목        
+    # ----------------------------------------------------------------        
+        for idx, data in enumerate(stockData):                 
+                dayData = getStocItemDayInfo(data[1])    
+                timeData = getStocItemTimeInfo(data[1])  
+
+                if len(dayData) > 1:
+                    filter_yn = True 
+
+                    # 어제 종가 
+                    yesterday_end_amt = int(dayData[1][1].replace(",",""))
+
+                    for j, time in enumerate(timeData):                 
+                        if int(time[1].replace(",","")) >= yesterday_end_amt:
+                            filter_yn = True 
+                        else:
+                            filter_yn = False
+                            break
+                                                         
+                    if filter_yn == True:
+                        # 최종 종가 
+                        end_amt = int(dayData[0][1].replace(",",""))
+
+                        for i, day in enumerate(dayData):                 
+                            if end_amt >= int(day[1].replace(",","")):
+                                filter_yn = True
+                                end_amt = int(day[1].replace(",",""))
+                            else:
+                                filter_yn = False
+                                break
+
+                            if i == RECENT_DAY_UNIT:
+                                break
+                        
+                        if filter_yn == True:
+                            selectStocks.append(data)
+
+        # print(selectStocks)
+    # ----------------------------------------------------------------
+
+    # purchase stock
+    if len(selectStocks) > 0:
+        current_amt =  getStocInfoData(selectStocks[0],"ING")
+        purchaseStock(selectStocks[0],current_amt)      
+
+    # delete temp stock
+    deleteTempStock()
+
+    # ----------------------------------------------------------------
+
+# purchase stock
+def purchaseStock(stockData,current_Amt):
     current_Amt = current_Amt.replace(",","")
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")    
     fundCol,fundData = searchAllData(STOCK_VERSION_META_TABLE)      
-    purchase_count = math.floor(int(fundData[0][1])/int(current_Amt))
+    purchase_count = math.floor(int(fundData[0][0])/int(current_Amt))
     purchase_amt = purchase_count * int(current_Amt)  
     sql = "update "+STOCK_VERSION_TABLE+" set status= ?, purchase_current_amt =? , purchase_count = ?, purchase_amt = ?, chg_dttm = ? where id = ?"
-    sqlParam =  (status , current_Amt , purchase_count, purchase_amt , chg_dttm , stockData[0])
-    executeDB(sql,sqlParam)            
+    sqlParam =  ("I" , current_Amt , purchase_count, purchase_amt , chg_dttm , stockData[0])
+    executeDB(sql,sqlParam)    
+
+    # update STOCK_VERSION_META_TABLE table current_amt 
+    sql = "update "+STOCK_VERSION_META_TABLE+" set current_amt = current_amt - "+str(purchase_amt)
+    executeDB(sql)        
            
+    log('purchase :'+str(stockData),"Y")     
+
 # sell stock
 def sellStock(stockData,current_Amt):
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -319,13 +396,33 @@ def sellStock(stockData,current_Amt):
     sqlParam =  ('C' , current_Amt , sell_amt , chg_dttm , stockData[0])
     executeDB(sql,sqlParam)
 
-# purchase stock monitoring
-def purchaseStockMonitoring(purchaseData):
-    log('--- stock info monitoring ---',"N")
+    # update STOCK_VERSION_META_TABLE table current_amt 
+    sql = "update "+STOCK_VERSION_META_TABLE+" set current_amt = current_amt + "+str(sell_amt)
+    executeDB(sql)
+
+# delete temp stock
+def deleteTempStock():
+    chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    sql = "delete from  "+STOCK_VERSION_TABLE+" where status = ? "
+    sqlParam =  ("P")
+    executeDB(sql,sqlParam)
+
+# stock monitoring
+def stockMonitoring(purchaseData):
+    log('--- stock monitoring ---',"N")
     nowTime = int(datetime.datetime.now().strftime("%H%M%S"))
     if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
+        initStock = False    
         for idx, data in enumerate(purchaseData):
-            getStocInfoData(data,"ING")
+            if "P" == data[3]:
+                initStock = True
+                break
+
+        if initStock == True:
+            choiceStock(purchaseData)
+        else:         
+            for idx, data in enumerate(purchaseData):
+                getStocInfoData(data,"ING")
     else:
         for idx, data in enumerate(purchaseData):
             getStocInfoData(data,"CLOSE")
@@ -376,11 +473,11 @@ def main_process():
     # pusrchase stock empty
     if len(purchaseData) == 0:
         stockData = getStocInfoTopList()
-        # purchase stock save
-        purchaseStock(stockData)
+        # Temp purchase stock save
+        tempPurchaseStock(stockData)
     else:    
-        # purchase stock monitoring
-        purchaseStockMonitoring(purchaseData)
+        # stock monitoring
+        stockMonitoring(purchaseData)
 
 ##################################################
 

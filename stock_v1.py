@@ -1,6 +1,6 @@
 ##################################################
 #
-#          stock_v_1 program
+#          stock_v1 program
 #
 ##################################################
 
@@ -16,14 +16,14 @@
 # 종목 선택 및 DB 저장 
 # - stock_v1 테이블 status 컬럼 값이 모두 I가 없는 경우
 # - 등락율 ▲ 
-# - 현재가 100,000 이하
+# - 현재가 CURRENT_AMOUNT_MAX 이하
 # - 위 조건 중 검색률 ▲ 순으로 Filter
 # - Filter 된 종목 status I 상태로 DB 저장
 #
 # 저장 종목 모니터링 및 매도/매수 알림 
 # - stock_v1 테이블 status 컬럼 값이 I 인 종목 대상
 # - 배치 주기에 따른 종목별 상세 데이타 모니터링 
-# - 등락율 +1.5% , -1% 시 매매 (status C 상태로 변경)
+# - 등락율 SELL_UP_RATE , SELL_DOWN_RATE 시 매매 (status C 상태로 변경)
 # - 매도/매수 처리 시 telegram 알림 전송
 #
 ##################################################
@@ -33,8 +33,8 @@
 # > create table schema
 #   - sqlite3 stock.db
 # 
-#   create table stock_v1_meta (init_amt text ,current_amt text);
-#   insert into stock_v1_meta (init_amt,current_amt) values ('300000','300000');
+#   create table stock_v1_meta (current_amt text);
+#   insert into stock_v1_meta (current_amt) values ('500000');
 #
 #   create table stock_v1 (id integer primary key autoincrement, code text, item text, status text
 #       , purchase_current_amt text , sell_current_amt text, purchase_count text
@@ -59,10 +59,10 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 # constant
 
 # proxy use
-PROXY_USE_FLAG = True
+PROXY_USE_FLAG = False
 # Proxy info
-HTTP_PROXY  = "http://70.10.15.10:8080"
-HTTPS_PROXY = "http://70.10.15.10:8080"
+HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
+HTTPS_PROXY = "https://xxx.xxx.xxx.xxx:xxxx"
 PROXY_DICT = { 
               "http"  : HTTP_PROXY, 
               "https" : HTTPS_PROXY
@@ -85,7 +85,7 @@ CRAWLING_TOP_LIST_URL = "/sise/lastsearch2.nhn"
 CRAWLING_ITEM_URL = "/item/main.nhn?code="
 
 # sell rate up
-SELL_UP_RATE = 1.5
+SELL_UP_RATE = 3
 # sell rate down
 SELL_DOWN_RATE = -1
 # telegram
@@ -144,7 +144,6 @@ def getStocInfoTopList():
             infoData.append(infolist)
     # print(infoData)
 
-    # 종목 코드 구하기 (To-Do 종목 데이타 구할때 href 태그 함께 구할수 없을까 ?)
     bs = bs4.BeautifulSoup(html, 'html.parser')
     tags = bs.select('a') 
     codeData = []
@@ -225,8 +224,8 @@ def purchaseStock(stockData):
        if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
             if len(fundData) > 0 :
                 for idx, data in enumerate(stockData):
-                    if int(fundData[0][1]) >= int((data[4])) :
-                        purchase_count = math.floor(int(fundData[0][1])/int(data[4]))
+                    if int(fundData[0][0]) >= int((data[4])) :
+                        purchase_count = math.floor(int(fundData[0][0])/int(data[4]))
                         purchase_amt = purchase_count * int(data[4])  
 
                         sql = """insert into """+STOCK_VERSION_TABLE+""" (code, item, status
