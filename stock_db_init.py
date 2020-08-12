@@ -11,6 +11,7 @@ import sqlite3
 ##################################################
 # constant
 current_amt = '500000'
+table_version = 4
 
 ##################################################
 # function
@@ -28,20 +29,20 @@ def executeDB(sqlText,sqlParam=None):
 
 # main process
 def main_process():
-    for idx in range(5):
+    for idx in range(table_version+1):
          
         try:
             try:
                 sqlText = 'drop table stock_v'+str(idx+1)
                 executeDB(sqlText)
             except Exception as err:
-                print(err)
+                pass
 
             try:
                 sqlText = 'drop table stock_v'+str(idx+1)+'_meta'
                 executeDB(sqlText)
             except Exception as err:
-                print(err)
+                pass
     
             sqlText = 'create table stock_v'+str(idx+1)+'_meta (current_amt text)'
             executeDB(sqlText)
@@ -55,7 +56,7 @@ def main_process():
         except Exception as err:
             print(err)
         
-        print('init stock_v'+str(idx+1) +' table')   
+        print('init stock_v'+str(idx+1) +'_meta and stock_v'+str(idx+1) +' table')   
 
 if __name__ == '__main__':
     main_process()
