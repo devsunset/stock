@@ -11,7 +11,7 @@ import sqlite3
 ##################################################
 # constant
 current_amt = '500000'
-table_version = 4
+table_version = 6
 
 ##################################################
 # function
@@ -29,9 +29,9 @@ def executeDB(sqlText,sqlParam=None):
 
 # main process
 def main_process():
-    for idx in range(table_version+1):
+    for idx in range(table_version):
          
-        if idx == 3 or idx == 4 :
+        if idx >= 3 :
             for idxF in range(0,21):
                 try:
                     try:
