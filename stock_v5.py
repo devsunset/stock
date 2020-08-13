@@ -1,6 +1,6 @@
 ##################################################
 #
-#          stock_v4 program
+#          stock_v5 program
 #
 ##################################################
 
@@ -19,7 +19,7 @@
 # - 분석된 결과를 토대로 한 종목의 상태를 I 갱신 후 임시 항목 삭제
 #
 # 3.저장 종목 모니터링 및 매도/매수 알림 
-# - stock_v4 테이블 status 컬럼 값이 I 인 종목 대상
+# - stock_v5 테이블 status 컬럼 값이 I 인 종목 대상
 # - 배치 주기에 따른 종목별 상세 데이타 모니터링 
 # - 등락율 SELL_UP_RATE , SELL_DOWN_RATE 시 매매 (status : C)
 # - 매도/매수 처리 시 telegram 알림 전송
@@ -31,10 +31,10 @@
 # > create table schema
 #   - sqlite3 stock.db
 # 
-#   create table stock_v4_x_meta (current_amt text);
-#   insert into stock_v4_x_meta (current_amt) values ('500000');
+#   create table stock_v5_x_meta (current_amt text);
+#   insert into stock_v5_x_meta (current_amt) values ('500000');
 #
-#   create table stock_v4_x (id integer primary key autoincrement, code text, item text, status text
+#   create table stock_v5_x (id integer primary key autoincrement, code text, item text, status text
 #       , purchase_current_amt text , sell_current_amt text, purchase_count text
 #       , purchase_amt text , sell_amt text, crt_dttm text, chg_dttm text);
 #
@@ -536,27 +536,27 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 2:
         RUN_CMD_INDEX = int(sys.argv[1])    
-        VERSION_META_TABLE = 'stock_v4_'+str(RUN_CMD_INDEX)+'_meta'
-        VERSION_TABLE = 'stock_v4_'+str(RUN_CMD_INDEX)        
+        VERSION_META_TABLE = 'stock_v5_'+str(RUN_CMD_INDEX)+'_meta'
+        VERSION_TABLE = 'stock_v5_'+str(RUN_CMD_INDEX)        
         print("---------------------------------")
         print('--- ',CRAWLING_TARGET[RUN_CMD_INDEX]['title'],'---')
-        print('python stock_v4.py ',RUN_CMD_INDEX,SELL_UP_RATE,SELL_DOWN_RATE)
+        print('python stock_v5.py ',RUN_CMD_INDEX,SELL_UP_RATE,SELL_DOWN_RATE)
         print("---------------------------------")
     elif len(sys.argv) == 4:
         RUN_CMD_INDEX = int(sys.argv[1])
-        VERSION_META_TABLE = 'stock_v4_'+str(RUN_CMD_INDEX)+'_meta'
-        VERSION_TABLE = 'stock_v4_'+str(RUN_CMD_INDEX)        
+        VERSION_META_TABLE = 'stock_v5_'+str(RUN_CMD_INDEX)+'_meta'
+        VERSION_TABLE = 'stock_v5_'+str(RUN_CMD_INDEX)        
         SELL_UP_RATE = float(sys.argv[2])
         SELL_DOWN_RATE = float(sys.argv[3])   
         print("---------------------------------")
         print('--- ',CRAWLING_TARGET[RUN_CMD_INDEX]['title'],'---')
-        print('python stock_v4.py ',RUN_CMD_INDEX,SELL_UP_RATE,SELL_DOWN_RATE)
+        print('python stock_v5.py ',RUN_CMD_INDEX,SELL_UP_RATE,SELL_DOWN_RATE)
         print("---------------------------------")    
     else:
-        VERSION_META_TABLE = 'stock_v4_'+str(RUN_CMD_INDEX)+'_meta'
-        VERSION_TABLE = 'stock_v4_'+str(RUN_CMD_INDEX)
+        VERSION_META_TABLE = 'stock_v5_'+str(RUN_CMD_INDEX)+'_meta'
+        VERSION_TABLE = 'stock_v5_'+str(RUN_CMD_INDEX)
         print("---------------------------------")
-        print("python stock_v4.py - default run")
+        print("python stock_v5.py - default run")
         print("---------------------------------")
         print("[1] : Run Command Index ")
         for idx, data in enumerate(CRAWLING_TARGET):      
@@ -564,7 +564,7 @@ if __name__ == '__main__':
         print("[2] : sell up rate ex) 1.5")
         print("[3] : sell down rate ex) -0.5")
         print("---------------------------------")
-        print('python stock_v4.py ',RUN_CMD_INDEX,SELL_UP_RATE,SELL_DOWN_RATE)
+        print('python stock_v5.py ',RUN_CMD_INDEX,SELL_UP_RATE,SELL_DOWN_RATE)
         print("---------------------------------")
     
     scheduler = BlockingScheduler()

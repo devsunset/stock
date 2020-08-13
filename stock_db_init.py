@@ -31,32 +31,61 @@ def executeDB(sqlText,sqlParam=None):
 def main_process():
     for idx in range(table_version+1):
          
-        try:
+        if idx == 3 or idx == 4 :
+            for idxF in range(0,21):
+                try:
+                    try:
+                        sqlText = 'drop table stock_v'+str(idx+1)+'_'+str(idxF)
+                        executeDB(sqlText)
+                    except Exception as err:
+                        pass
+
+                    try:
+                        sqlText = 'drop table stock_v'+str(idx+1)+'_'+str(idxF)+'_meta'
+                        executeDB(sqlText)
+                    except Exception as err:
+                        pass
+            
+                    sqlText = 'create table stock_v'+str(idx+1)+'_'+str(idxF)+'_meta (current_amt text)'
+                    executeDB(sqlText)
+
+                    sqlText = 'insert into stock_v'+str(idx+1)+'_'+str(idxF)+'_meta (current_amt) values ('+current_amt+')'
+                    executeDB(sqlText)
+
+                    sqlText = 'create table stock_v'+str(idx+1)+'_'+str(idxF)+' (id integer primary key autoincrement, code text, item text, status text, purchase_current_amt text , sell_current_amt text, purchase_count text, purchase_amt text , sell_amt text, crt_dttm text, chg_dttm text)'
+                    executeDB(sqlText)
+
+                except Exception as err:
+                    print(err)
+            
+                print('init stock_v'+str(idx+1) +'_meta and stock_v'+str(idx+1)+'_'+str(idxF) +' table')               
+        else:
             try:
-                sqlText = 'drop table stock_v'+str(idx+1)
-                executeDB(sqlText)
-            except Exception as err:
-                pass
+                try:
+                    sqlText = 'drop table stock_v'+str(idx+1)
+                    executeDB(sqlText)
+                except Exception as err:
+                    pass
 
-            try:
-                sqlText = 'drop table stock_v'+str(idx+1)+'_meta'
-                executeDB(sqlText)
-            except Exception as err:
-                pass
-    
-            sqlText = 'create table stock_v'+str(idx+1)+'_meta (current_amt text)'
-            executeDB(sqlText)
-
-            sqlText = 'insert into stock_v'+str(idx+1)+'_meta (current_amt) values ('+current_amt+')'
-            executeDB(sqlText)
-
-            sqlText = 'create table stock_v'+str(idx+1)+' (id integer primary key autoincrement, code text, item text, status text, purchase_current_amt text , sell_current_amt text, purchase_count text, purchase_amt text , sell_amt text, crt_dttm text, chg_dttm text)'
-            executeDB(sqlText)
-
-        except Exception as err:
-            print(err)
+                try:
+                    sqlText = 'drop table stock_v'+str(idx+1)+'_meta'
+                    executeDB(sqlText)
+                except Exception as err:
+                    pass
         
-        print('init stock_v'+str(idx+1) +'_meta and stock_v'+str(idx+1) +' table')   
+                sqlText = 'create table stock_v'+str(idx+1)+'_meta (current_amt text)'
+                executeDB(sqlText)
+
+                sqlText = 'insert into stock_v'+str(idx+1)+'_meta (current_amt) values ('+current_amt+')'
+                executeDB(sqlText)
+
+                sqlText = 'create table stock_v'+str(idx+1)+' (id integer primary key autoincrement, code text, item text, status text, purchase_current_amt text , sell_current_amt text, purchase_count text, purchase_amt text , sell_amt text, crt_dttm text, chg_dttm text)'
+                executeDB(sqlText)
+
+            except Exception as err:
+                print(err)
+            
+            print('init stock_v'+str(idx+1) +'_meta and stock_v'+str(idx+1) +' table')   
 
 if __name__ == '__main__':
     main_process()
