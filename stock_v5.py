@@ -16,6 +16,7 @@
 #
 # 2.임시 저장 좀목 시세별 시세 모니터링 ( status : P )
 # - 일별 / 시세별 데이타  거래량 모니터링 분석 
+# - 투자자 보호 대상 종목 제외
 # - 분석된 결과를 토대로 한 종목의 상태를 I 갱신 후 임시 항목 삭제
 #
 # 3.저장 종목 모니터링 및 매도/매수 알림 
@@ -104,7 +105,14 @@ CRAWLING_TARGET = [
 ,{'idx':18,'title':'이격도과열 종목','url':'/sise/item_igyuk.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
 ,{'idx':19,'title':'투자심리과열 종목','url':'/sise/item_overheating_1.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
 ,{'idx':20,'title':'상대강도과열 종목','url':'/sise/item_overheating_2.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-]       
+] 
+CRAWING_EXCLUDE_TARGET =[
+ {'idx':0,'title':'관리종목','url':'/sise/management.nhn'}
+,{'idx':1,'title':'거래정지종목','url':'/sise/trading_halt.nhn'}
+,{'idx':2,'title':'시장경보 - 투자 주의 종목','url':'/sise/investment_alert.nhn?type=caution'}
+,{'idx':3,'title':'시장경보 - 투자 경보 종목','url':'/sise/investment_alert.nhn?type=warning'}
+,{'idx':4,'title':'시장경보 - 투자 위험 종목','url':'/sise/investment_alert.nhn?type=risk'}
+]      
 CRAWLING_ITEM_URL = "/item/main.nhn?code="
 CRAWLING_ITEM_DAY_URL = "/item/sise_day.nhn?page=1&code="
 CRAWLING_ITEM_TIME_URL = "/item/sise_time.nhn?page=1&code="  
@@ -194,10 +202,11 @@ def getStocInfoItemList():
         infoData = infoData[0:MAX_STOCK_ITEM]
 
     filterData = []
+    excludeData = getExcludeStocInfoItemList()
     for idx, data in enumerate(infoData):
         # print(idx, data)
         # 현재가가 CURRENT_AMOUNT_MAX 이하 이며 등락율이 상승인 종목만 Filter
-        if int(data[CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]) <= CURRENT_AMOUNT_MAX and data[CRAWLING_TARGET[RUN_CMD_INDEX]['uprateIdx']][0] == "+":
+        if codeData[idx].replace("/item/main.nhn?code=","") not in excludeData and int(data[CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]) <= CURRENT_AMOUNT_MAX and data[CRAWLING_TARGET[RUN_CMD_INDEX]['uprateIdx']][0] == "+":
             # print(data)
             if data[CRAWLING_TARGET[RUN_CMD_INDEX]['sortIdx']] == 'N/A':
                  filterData.append((float(1) ,codeData[idx].replace("/item/main.nhn?code=","")
@@ -212,6 +221,30 @@ def getStocInfoItemList():
     #     for idx, data in enumerate(filterData):
     #         print("추천 종목 ",idx,":",data)
     return filterData
+
+# exclude stock item list crawling
+def getExcludeStocInfoItemList():
+    resp = None    
+    codeData = []
+
+    for idx, data in enumerate(CRAWING_EXCLUDE_TARGET):      
+        if PROXY_USE_FLAG :
+            resp = requests.get(BASE_URL+CRAWING_EXCLUDE_TARGET[idx]['url'],proxies=PROXY_DICT)       
+        else:
+            resp = requests.get(BASE_URL+CRAWING_EXCLUDE_TARGET[idx]['url'])
+
+        html = resp.text
+
+        bs = bs4.BeautifulSoup(html, 'html.parser')
+        tags = bs.select('a') 
+        
+        for i in range(len(tags)):    
+            txt = tags[i].get("href")
+            if txt.find("main.nhn?code=") > 0 :
+                codeData.append(txt.replace("/item/main.nhn?code=",""))
+        # print(codeData)    
+
+    return codeData
 
 # item day trend data crawling
 def getStocItemDayInfo(stock_code):
