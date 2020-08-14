@@ -8,7 +8,7 @@
 #
 # 개요 - 프로세스 설명
 #
-# 프로그램 실행 유효 시간 : 09:00 ~ 15:20
+# 프로그램 실행 유효 시간 : 09:05 ~ 15:00
 #
 # 네이버 주식 인기 종목 페이지 분석 - Crawling
 # - (https://finance.naver.com/sise/lastsearch2.nhn)
@@ -66,7 +66,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 PROXY_USE_FLAG = False
 # Proxy info
 HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
-HTTPS_PROXY = "https://xxx.xxx.xxx.xxx:xxxx"
+HTTPS_PROXY = "http://xxx.xxx.xxx.xxx:xxxx"
 PROXY_DICT = { 
               "http"  : HTTP_PROXY, 
               "https" : HTTPS_PROXY
@@ -75,11 +75,11 @@ PROXY_DICT = {
 STOCK_VERSION_META_TABLE = 'stock_v2_meta'
 STOCK_VERSION_TABLE = 'stock_v2'
 # 선택 종목 금액 MAX
-CURRENT_AMOUNT_MAX = 100000
+CURRENT_AMOUNT_MAX = 150000
 # 프로그램 실행 주기 
-INTERVAL_SECONDS = 60
+INTERVAL_SECONDS = 30
 # 프로그램 시작 시간
-START_TIME = "090000"
+START_TIME = "090005"
 # 프로그램 종료 시간
 END_TIME = "150000"
 # base url
@@ -90,9 +90,9 @@ CRAWLING_ITEM_URL = "/item/main.nhn?code="
 CRAWLING_ITEM_DAY_URL = "/item/sise_day.nhn?page=1&code="
 CRAWLING_ITEM_TIME_URL = "/item/sise_time.nhn?page=1&code="  
 # sell rate up
-SELL_UP_RATE = 3
+SELL_UP_RATE = 1.5
 # sell rate down
-SELL_DOWN_RATE = -1
+SELL_DOWN_RATE = -0.5
 # telegram
 TELEGRAM_TOKEN = '1280370073:AAHFwcNtcS9pvqF29zJJKEOY0SvnW8NH1do'
 bot = telegram.Bot(token = TELEGRAM_TOKEN)
@@ -294,6 +294,7 @@ def purchaseStock(stockData):
                         executeDB(sql,sqlParam)
 
             log('--- stock info save ---',"N")
+            main_process()
 
 # change stock item status
 def changeStockItemStatus(stockData,status,current_Amt):
@@ -309,7 +310,7 @@ def changeStockItemStatus(stockData,status,current_Amt):
 # sell stock
 def sellStock(stockData,current_Amt):
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6]) - int(stockData[7])
+    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6])
     sql = "update "+STOCK_VERSION_TABLE+" set status= ?, sell_current_amt = ?, sell_amt = ? ,chg_dttm = ? where id = ?"
     sqlParam =  ('C' , current_Amt , sell_amt , chg_dttm , stockData[0])
     executeDB(sql,sqlParam)

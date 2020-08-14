@@ -63,7 +63,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 PROXY_USE_FLAG = False
 # Proxy info
 HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
-HTTPS_PROXY = "https://xxx.xxx.xxx.xxx:xxxx"
+HTTPS_PROXY = "http://xxx.xxx.xxx.xxx:xxxx"
 PROXY_DICT = { 
               "http"  : HTTP_PROXY, 
               "https" : HTTPS_PROXY
@@ -406,7 +406,7 @@ def purchaseStock(stockData,current_Amt,VERSION_META_TABLE,VERSION_TABLE):
 # sell stock
 def sellStock(stockData,current_Amt,VERSION_META_TABLE,VERSION_TABLE,msg):
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6]) - int(stockData[7])
+    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6])
     sql = "update "+VERSION_TABLE+" set status= ?, sell_current_amt = ?, sell_amt = ? ,chg_dttm = ? where id = ?"
     sqlParam =  ('C' , current_Amt , sell_amt , chg_dttm , stockData[0])
     executeDB(sql,sqlParam)

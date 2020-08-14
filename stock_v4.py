@@ -62,7 +62,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 PROXY_USE_FLAG = False
 # Proxy info
 HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
-HTTPS_PROXY = "https://xxx.xxx.xxx.xxx:xxxx"
+HTTPS_PROXY = "http://xxx.xxx.xxx.xxx:xxxx"
 PROXY_DICT = { 
               "http"  : HTTP_PROXY, 
               "https" : HTTPS_PROXY
@@ -70,7 +70,7 @@ PROXY_DICT = {
 # 선택 종목 금액 MAX
 CURRENT_AMOUNT_MAX = 150000
 # 프로그램 실행 주기 
-INTERVAL_SECONDS = 20
+INTERVAL_SECONDS = 30
 # 최근 종가 체크 단위 일수 
 RECENT_DAY_UNIT = 3
 # 종목 체크 최대 갯수
@@ -342,11 +342,10 @@ def tempPurchaseStock(stockData):
                         sql = """insert into """+VERSION_TABLE+""" (code, item, status, crt_dttm) values (?, ?, ?, ?)"""
                         sqlParam = (data[1], data[2], "P" , crt_dttm)
                         executeDB(sql,sqlParam)
-            log('--- temp stock info save ---',"N")
 
-            purchaseCol, purchaseData = searchAllData(VERSION_TABLE)    
-            if len(purchaseData) > 0:
-                stockMonitoring(purchaseData)
+            log('--- temp stock info save ---',"N")
+            main_process()
+
         else:
             log('--- stock item list empty ---',"N")  
     else:
@@ -370,7 +369,7 @@ def purchaseStock(stockData,current_Amt):
 # sell stock
 def sellStock(stockData,current_Amt):
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6]) - int(stockData[7])
+    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6])
     sql = "update "+VERSION_TABLE+" set status= ?, sell_current_amt = ?, sell_amt = ? ,chg_dttm = ? where id = ?"
     sqlParam =  ('C' , current_Amt , sell_amt , chg_dttm , stockData[0])
     executeDB(sql,sqlParam)

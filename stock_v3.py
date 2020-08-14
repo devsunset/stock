@@ -72,7 +72,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 PROXY_USE_FLAG = False
 # Proxy info
 HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
-HTTPS_PROXY = "https://xxx.xxx.xxx.xxx:xxxx"
+HTTPS_PROXY = "http://xxx.xxx.xxx.xxx:xxxx"
 PROXY_DICT = { 
               "http"  : HTTP_PROXY, 
               "https" : HTTPS_PROXY
@@ -83,7 +83,7 @@ STOCK_VERSION_TABLE = 'stock_v3'
 # 선택 종목 금액 MAX
 CURRENT_AMOUNT_MAX = 150000
 # 프로그램 실행 주기 
-INTERVAL_SECONDS = 20
+INTERVAL_SECONDS = 30
 # 프로그램 시작 시간
 START_TIME = "090005"
 # 프로그램 종료 시간
@@ -304,14 +304,9 @@ def tempPurchaseStock(stockData):
                         sql = """insert into """+STOCK_VERSION_TABLE+""" (code, item, status, crt_dttm) values (?, ?, ?, ?)"""
                         sqlParam = (data[1], data[2], "P" , crt_dttm)
                         executeDB(sql,sqlParam)
-            log('--- temp stock info save ---',"N")
 
-            # serarch stock version table table data
-            purchaseCol, purchaseData = searchAllData(STOCK_VERSION_TABLE)    
-            # pusrchase stock empty
-            if len(purchaseData) > 0:
-                # stock monitoring
-                stockMonitoring(purchaseData)
+            log('--- temp stock info save ---',"N")
+            main_process()
     else:
         log('--- stock top list empty ---',"N")  
 
@@ -391,7 +386,7 @@ def purchaseStock(stockData,current_Amt):
 # sell stock
 def sellStock(stockData,current_Amt):
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6]) - int(stockData[7])
+    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6])
     sql = "update "+STOCK_VERSION_TABLE+" set status= ?, sell_current_amt = ?, sell_amt = ? ,chg_dttm = ? where id = ?"
     sqlParam =  ('C' , current_Amt , sell_amt , chg_dttm , stockData[0])
     executeDB(sql,sqlParam)
