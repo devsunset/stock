@@ -11,7 +11,7 @@ import sqlite3
 ##################################################
 # constant
 current_amt = '500000'
-table_version = 6
+table_version = 7
 
 ##################################################
 # function
