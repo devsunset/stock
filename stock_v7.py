@@ -73,11 +73,13 @@ CURRENT_AMOUNT_MAX = 150000
 # 프로그램 실행 주기 
 INTERVAL_SECONDS = 60
 # sell rate up 
-SELL_UP_RATE = 2.5
+SELL_UP_RATE = 1.5
 # sell rate down
 SELL_DOWN_RATE = -0.5   
 # 최근 종가 체크 단위 일수 
 RECENT_DAY_UNIT = 3
+# 최근 하락 매도 횟수
+SELL_DOWN_CNT = 2
 # 종목 체크 최대 갯수
 MAX_STOCK_ITEM = 30
 # 프로그램 시작 시간
@@ -89,21 +91,21 @@ BASE_URL = "https://finance.naver.com"
 # crawling target
 CRAWLING_TARGET = [
  {'idx':0,'skip':False,'title':'검색상위 종목','url':'/sise/lastsearch2.nhn','css_class':'type_5','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':3,'uprateIdx':5}   
-,{'idx':1,'skip':False,'title':'시가총액 코스피','url':'/sise/sise_market_sum.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':13, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}   
-,{'idx':2,'skip':False,'title':'시가총액 코스닥','url':'/sise/sise_market_sum.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':13, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
+,{'idx':1,'skip':True,'title':'시가총액 코스피','url':'/sise/sise_market_sum.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':13, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}   
+,{'idx':2,'skip':True,'title':'시가총액 코스닥','url':'/sise/sise_market_sum.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':13, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
 ,{'idx':3,'skip':False,'title':'상승 코스피','url':'/sise/sise_rise.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
 ,{'idx':4,'skip':False,'title':'상승 코스닥','url':'/sise/sise_rise.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
 ,{'idx':5,'skip':False,'title':'상한가 코스피/코스닥','url':'/sise/sise_upper.nhn','css_class':'type_5','sortIdx':11 , 'reverse':False ,'checklength':12, 'codeNameIdx':3,'current_amtIdx':4,'uprateIdx':6}
 ,{'idx':6,'skip':False,'title':'저가대비급등 코스피','url':'/sise/sise_low_up.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
 ,{'idx':7,'skip':False,'title':'저가대비급등 코스닥','url':'/sise/sise_low_up.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':8,'skip':False,'title':'거래상위 코스피','url':'/sise/sise_quant.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':9,'skip':False,'title':'거래상위 코스닥','url':'/sise/sise_quant.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
+,{'idx':8,'skip':True,'title':'거래상위 코스피','url':'/sise/sise_quant.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
+,{'idx':9,'skip':True,'title':'거래상위 코스닥','url':'/sise/sise_quant.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
 ,{'idx':10,'skip':False,'title':'거래량 급증 코스피','url':'/sise/sise_quant_high.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':11, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
 ,{'idx':11,'skip':False,'title':'거래량 급증 코스닥','url':'/sise/sise_quant_high.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':11, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':12,'skip':False,'title':'신규상장종목 코스피','url':'/sise/sise_new_stock.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':13,'skip':False,'title':'신규상장종목 코스닥','url':'/sise/sise_new_stock.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':14,'skip':False,'title':'외국인보유현황 코스피','url':'/sise/sise_foreign_hold.nhn?sosok=0','css_class':'type_2','sortIdx':8 , 'reverse':False ,'checklength':10, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':15,'skip':False,'title':'외국인보유현황 코스닥','url':'/sise/sise_foreign_hold.nhn?sosok=1','css_class':'type_2','sortIdx':8 , 'reverse':False ,'checklength':10, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
+,{'idx':12,'skip':True,'title':'신규상장종목 코스피','url':'/sise/sise_new_stock.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
+,{'idx':13,'skip':True,'title':'신규상장종목 코스닥','url':'/sise/sise_new_stock.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
+,{'idx':14,'skip':True,'title':'외국인보유현황 코스피','url':'/sise/sise_foreign_hold.nhn?sosok=0','css_class':'type_2','sortIdx':8 , 'reverse':False ,'checklength':10, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
+,{'idx':15,'skip':True,'title':'외국인보유현황 코스닥','url':'/sise/sise_foreign_hold.nhn?sosok=1','css_class':'type_2','sortIdx':8 , 'reverse':False ,'checklength':10, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
 ,{'idx':16,'skip':False,'title':'골든크로스 종목','url':'/sise/item_gold.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
 ,{'idx':17,'skip':False,'title':'갭상승 종목','url':'/sise/item_gap.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
 ,{'idx':18,'skip':False,'title':'이격도과열 종목','url':'/sise/item_igyuk.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
@@ -128,6 +130,9 @@ TELEGRAM_SEND_FLAG = False
 # stock Duplicate prevention
 global dpstock
 dpstock = {}
+# stock down prevention
+global downstock
+downstock = {}
 ##################################################
 # function
 
@@ -210,8 +215,18 @@ def getStocInfoItemList(RUN_CMD_INDEX,excludeData):
     filterData = []
     for idx, data in enumerate(infoData):
         # print(idx, data)
-        # 현재가가 CURRENT_AMOUNT_MAX 이하 이며 등락율이 상승인 종목만 Filter
-        if dpstock.get(codeData[idx].replace("/item/main.nhn?code=","")) == None and codeData[idx].replace("/item/main.nhn?code=","") not in excludeData and int(data[CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]) <= CURRENT_AMOUNT_MAX and data[CRAWLING_TARGET[RUN_CMD_INDEX]['uprateIdx']][0] == "+":
+        # downstock 기존에 구매후 하락으로 매도건이 3번 이상 발생시 skip
+        # dpstock 이미 구매한 건에 대해서는 skip 
+        # 현재가가 CURRENT_AMOUNT_MAX 이하
+        # 등락율이 상승인 종목만 선택
+        # 투자 경고/위험/리스크 종목에 대해서는 skip  
+        downcheck = 0
+        if  downstock.get(codeData[idx].replace("/item/main.nhn?code=","")) == None:
+            downcheck = 0
+        else:
+            downcheck = downstock.get(codeData[idx].replace("/item/main.nhn?code=",""))
+
+        if downcheck <= SELL_DOWN_CNT and dpstock.get(codeData[idx].replace("/item/main.nhn?code=","")) == None and codeData[idx].replace("/item/main.nhn?code=","") not in excludeData and int(data[CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]) <= CURRENT_AMOUNT_MAX and data[CRAWLING_TARGET[RUN_CMD_INDEX]['uprateIdx']][0] == "+":
             # print(data)
             if data[CRAWLING_TARGET[RUN_CMD_INDEX]['sortIdx']] == 'N/A':
                  filterData.append((float(1) ,codeData[idx].replace("/item/main.nhn?code=","")
@@ -315,11 +330,20 @@ def getStocInfoData(data,status,VERSION_META_TABLE,VERSION_TABLE):
     bs = bs4.BeautifulSoup(html, 'html.parser')    
 
     arrow = "△"
-    current_Amt = bs.find("em",{"class":"no_up"}).find("span",{"class":"blind"}).get_text()
+
+    try:
+        current_Amt = bs.find("em",{"class":"no_up"}).find("span",{"class":"blind"}).get_text()
+    except Exception as err:
+        print(err)
+        return "0"
 
     if current_Amt == None :
-        arrow = "▼"
-        current_Amt = bs.find("em",{"class":"no_down"}).find("span",{"class":"blind"}).get_text()
+        arrow = "▼"        
+        try:
+            current_Amt = bs.find("em",{"class":"no_down"}).find("span",{"class":"blind"}).get_text()
+        except Exception as err:
+            print(err)
+            return "0"
 
     if data[3] == "I" :
         item_text = " 종목 : "+fill_str_space(data[2],25) 
@@ -341,7 +365,11 @@ def getStocInfoData(data,status,VERSION_META_TABLE,VERSION_TABLE):
 
         if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) <= SELL_DOWN_RATE) :
             sellStock(data,current_Amt,VERSION_META_TABLE,VERSION_TABLE,'▼ sell : '+item_text)
-            processing = False
+            processing = False            
+            if downstock.get(data[1]) != None:
+                downstock[data[1]] = int(downstock.get(data[1]))+1
+            else:
+                downstock[data[1]] = 1
 
         if processing and status == "CLOSE":
             sellStock(data,current_Amt,VERSION_META_TABLE,VERSION_TABLE,'close market - sell : '+item_text)
@@ -428,7 +456,7 @@ def sellStock(stockData,current_Amt,VERSION_META_TABLE,VERSION_TABLE,msg):
 
     if dpstock.get(stockData[1]) != None:
         del dpstock[stockData[1]]
-
+ 
 # delete temp stock
 def deleteTempStock(VERSION_TABLE):
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -456,6 +484,7 @@ def stockMonitoring(purchaseData,VERSION_META_TABLE,VERSION_TABLE):
     else:
         log('--- stock market close ---',"N")
         dpstock.clear()
+        downstock.clear()
         for idx, data in enumerate(purchaseData):
             getStocInfoData(data,"CLOSE",VERSION_META_TABLE,VERSION_TABLE)
 
@@ -576,7 +605,8 @@ def choiceStock(stockData,VERSION_META_TABLE,VERSION_TABLE):
         # randomIdx = random.randint(1,len(selectStocks)) -1
         randomIdx = 0
         current_amt =  getStocInfoData(selectStocks[randomIdx],"ING",VERSION_META_TABLE,VERSION_TABLE)
-        purchaseStock(selectStocks[randomIdx],current_amt,VERSION_META_TABLE,VERSION_TABLE)      
+        if int(current_amt.replace(",","")) > 0:
+            purchaseStock(selectStocks[randomIdx],current_amt,VERSION_META_TABLE,VERSION_TABLE)      
 
     # delete temp stock
     deleteTempStock(VERSION_TABLE)
