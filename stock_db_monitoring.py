@@ -11,11 +11,11 @@ import unicodedata
 import requests
 import bs4
 
-import stock_v7
+import stock_v8
 
 ##################################################
 # constant
-table_version = 7
+table_version = 8
 current_amt = 500000
 # proxy use
 PROXY_USE_FLAG = False
@@ -167,7 +167,7 @@ def main_process():
     global CRAWLING_TARGET_FROM_MODULE
     CRAWLING_TARGET_FROM_MODULE = []
 
-    for idx, data in enumerate(stock_v7.CRAWLING_TARGET):
+    for idx, data in enumerate(stock_v8.CRAWLING_TARGET):
         if data['skip'] == False:
             CRAWLING_TARGET_FROM_MODULE.append(data)
 

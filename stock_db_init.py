@@ -11,7 +11,7 @@ import sqlite3
 ##################################################
 # constant
 current_amt = '500000'
-table_version = 7
+table_version = 8
 
 ##################################################
 # function
@@ -52,7 +52,7 @@ def main_process():
                     sqlText = 'insert into stock_v'+str(idx+1)+'_'+str(idxF)+'_meta (current_amt) values ('+current_amt+')'
                     executeDB(sqlText)
 
-                    sqlText = 'create table stock_v'+str(idx+1)+'_'+str(idxF)+' (id integer primary key autoincrement, code text, item text, status text, purchase_current_amt text , sell_current_amt text, purchase_count text, purchase_amt text , sell_amt text, crt_dttm text, chg_dttm text)'
+                    sqlText = 'create table stock_v'+str(idx+1)+'_'+str(idxF)+' (id integer primary key autoincrement, code text, item text, status text, purchase_current_amt text, sell_current_amt text, purchase_count text, purchase_amt text, sell_amt text, up_amt text, crt_dttm text, chg_dttm text)'
                     executeDB(sqlText)
 
                 except Exception as err:
