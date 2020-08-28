@@ -45,6 +45,8 @@
 #   BotFather -> /newbot -> devsunetstock -> devsunsetstock_bot - > get api key 
 # 
 ##################################################
+# import 
+
 # install library
 # $ pip install requests beautifulsoup4 apscheduler python-telegram-bot
 import sqlite3

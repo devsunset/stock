@@ -32,6 +32,7 @@ PROXY_DICT = {
 # base url
 BASE_URL = "https://finance.naver.com"            
 CRAWLING_ITEM_URL = "/item/main.nhn?code="
+
 ##################################################
 # function
 
