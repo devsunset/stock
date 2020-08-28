@@ -7,16 +7,19 @@
 import sqlite3
 import unicodedata
 # install library
-# $ pip install requests beautifulsoup4
+# $ pip install requests beautifulsoup4 apscheduler
 import requests
 import bs4
+from apscheduler.schedulers.blocking import BlockingScheduler
 
-import stock_v8
+import stock_v9
 
 ##################################################
 # constant
-table_version = 8
+table_version = 9
 current_amt = 500000
+# 프로그램 실행 주기 
+INTERVAL_SECONDS = 30
 # proxy use
 PROXY_USE_FLAG = False
 # Proxy info
@@ -154,29 +157,36 @@ def getCurrentAmtData():
 
     stockDataList.sort(key = lambda element : element[5],reverse=True)
 
+    print('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------')
     print(fill_str_space('분류',25),fill_str_space('종목코드',10),fill_str_space('종목명',35),fill_str_space('상태',10),fill_str_space('최초자산',10),fill_str_space('현재자산',10),fill_str_space('이익',10),' --- ', fill_str_space('실시간현재 자산',20),fill_str_space('실시간 이익',10))
+    print('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------')
     # stockList = []
     for x, stock in enumerate(stockDataList):
         # print(stock)
         print(fill_str_space('['+stock[0]+']',25),fill_str_space(stock[2],10),fill_str_space(stock[3],35),fill_str_space(stock[1],10),fill_str_space(format(current_amt,','),10),fill_str_space(format(int(stock[4]),','),10),fill_str_space('['+str(format(int(stock[4]) - current_amt,','))+']',10),' --- ',fill_str_space(format(stock[5],','),20),fill_str_space('['+str(format(int(stock[5]) - current_amt,','))+']',10))
         # stockList.append(('['+stock[0]+']',stock[2],stock[3],stock[1],format(current_amt,','),format(int(stock[4]),','),'['+str(format(int(stock[4]) - current_amt,','))+']',' --- ',format(stock[5],','),'['+str(format(int(stock[5]) - current_amt,','))+']'))
-
-
+    
 # main process
 def main_process():
-    global CRAWLING_TARGET_FROM_MODULE
-    CRAWLING_TARGET_FROM_MODULE = []
-
-    for idx, data in enumerate(stock_v8.CRAWLING_TARGET):
-        if data['skip'] == False:
-            CRAWLING_TARGET_FROM_MODULE.append(data)
-
     # setAllStockSell()
     # getLastCurrentAllData()
     getCurrentAmtData()
 
 if __name__ == '__main__':
+    global CRAWLING_TARGET_FROM_MODULE
+    CRAWLING_TARGET_FROM_MODULE = []
+
+    for idx, data in enumerate(stock_v9.CRAWLING_TARGET):
+        if data['skip'] == False:
+            CRAWLING_TARGET_FROM_MODULE.append(data)
+
+    scheduler = BlockingScheduler()
+    scheduler.add_job(main_process, 'interval', seconds=INTERVAL_SECONDS)
     main_process()
+    try:
+        scheduler.start()
+    except Exception as err:
+        print(err)
 
 
 
