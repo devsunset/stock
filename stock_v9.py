@@ -44,7 +44,6 @@
 # 
 ##################################################
 # import
-
 import sys
 import sqlite3
 import datetime
@@ -57,6 +56,8 @@ import requests
 import bs4
 import telegram
 from apscheduler.schedulers.blocking import BlockingScheduler
+
+import stock_closed
 ##################################################
 # constant
 
@@ -83,10 +84,6 @@ RECENT_DAY_UNIT = 3
 SELL_DOWN_CNT = 2
 # 종목 체크 최대 갯수
 MAX_STOCK_ITEM = 30
-# 프로그램 시작 시간
-START_TIME = "090005"
-# 프로그램 종료 시간
-END_TIME = "150000"
 # base url
 BASE_URL = "https://finance.naver.com"
 # crawling target
@@ -416,9 +413,8 @@ def getStocInfoData(data,status,VERSION_META_TABLE,VERSION_TABLE):
 
 # temp pusrchase stock
 def tempPurchaseStock(stockData,VERSION_META_TABLE,VERSION_TABLE):
-    nowTime = int(datetime.datetime.now().strftime("%H%M%S"))   
-
-    if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
+    closed = stock_closed.ClosedDayTime()
+    if closed.is_closedDayTime():
         if len(stockData) > 0 :
             fundCol,fundData = searchAllData(VERSION_META_TABLE)         
             crt_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")          
@@ -505,8 +501,8 @@ def deleteTempStock(VERSION_TABLE):
 
 # stock monitoring
 def stockMonitoring(purchaseData,VERSION_META_TABLE,VERSION_TABLE):   
-    nowTime = int(datetime.datetime.now().strftime("%H%M%S"))
-    if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
+    closed = stock_closed.ClosedDayTime()
+    if closed.is_closedDayTime():
         log('--- stock monitoring ---',"P")
         initStock = False    
         for idx, data in enumerate(purchaseData):
