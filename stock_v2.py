@@ -8,15 +8,13 @@
 #
 # 개요 - 프로세스 설명
 #
-# 프로그램 실행 유효 시간 : 09:05 ~ 15:00
-#
 # 네이버 주식 인기 종목 페이지 분석 - Crawling
 # - (https://finance.naver.com/sise/lastsearch2.nhn)
 #
 # 종목 선택 및 DB 저장 
-# - stock_v2 테이블 status 컬럼 값이 모두 C 인 경우
-# - 등락율 ▲ 
-# - 현재가 CURRENT_AMOUNT_MAX 이하
+# - stock_vX 테이블 status 컬럼 값이 I가 없는 경우
+# - 등락율 상승 항목
+# - 현재가 값이 매수가 MAX 보다 이하인 항목
 # - 위 조건 중 검색률 ▲ 순으로 Filter
 # - Filter 된 종목 status P 상태로 DB 저장
 #
@@ -26,33 +24,16 @@
 # - 종목의 상태를 I로 저장
 #
 # 저장 종목 모니터링 및 매도/매수 알림 
-# - stock_v2 테이블 status 컬럼 값이 I 인 종목 대상
+# - stock_vX 테이블 status 컬럼 값이 I 인 종목 대상
 # - 배치 주기에 따른 종목별 상세 데이타 모니터링 
 # - 등락율 SELL_UP_RATE , SELL_DOWN_RATE 시 매매 (status C 상태로 변경)
 # - 매도/매수 처리 시 telegram 알림 전송
 #
 ##################################################
-#
-# > seqlite3 install  && sqlite location PATH add
-#
-# > create table schema
-#   - sqlite3 stock.db
-# 
-#   create table stock_v2_meta (current_amt text);
-#   insert into stock_v2_meta (current_amt) values ('500000');
-#
-#   create table stock_v2 (id integer primary key autoincrement, code text, item text, status text
-#       , purchase_current_amt text , sell_current_amt text, purchase_count text
-#       , purchase_amt text , sell_amt text, crt_dttm text, chg_dttm text);
-#
-# > telegram setting
-#   BotFather -> /newbot -> devsunetstock -> devsunsetstock_bot - > get api key 
-# 
+
 ##################################################
 # import 
 
-# install library
-# $ pip install requests beautifulsoup4 apscheduler python-telegram-bot
 import sqlite3
 import datetime
 import math
@@ -61,45 +42,18 @@ import requests
 import bs4
 import telegram
 from apscheduler.schedulers.blocking import BlockingScheduler
+import stock_closed_daytime
+import stock_constant
+
 ##################################################
 # constant
 
-# proxy use
-PROXY_USE_FLAG = False
-# Proxy info
-HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
-HTTPS_PROXY = "http://xxx.xxx.xxx.xxx:xxxx"
-PROXY_DICT = { 
-              "http"  : HTTP_PROXY, 
-              "https" : HTTPS_PROXY
-            }
 # VERSION TABLE
 STOCK_VERSION_META_TABLE = 'stock_v2_meta'
 STOCK_VERSION_TABLE = 'stock_v2'
-# 선택 종목 금액 MAX
-CURRENT_AMOUNT_MAX = 150000
-# 프로그램 실행 주기 
-INTERVAL_SECONDS = 30
-# 프로그램 시작 시간
-START_TIME = "090005"
-# 프로그램 종료 시간
-END_TIME = "150000"
-# base url
-BASE_URL = "https://finance.naver.com"
-# crawling url
-CRAWLING_TOP_LIST_URL = "/sise/lastsearch2.nhn"
-CRAWLING_ITEM_URL = "/item/main.nhn?code="
-CRAWLING_ITEM_DAY_URL = "/item/sise_day.nhn?page=1&code="
-CRAWLING_ITEM_TIME_URL = "/item/sise_time.nhn?page=1&code="  
-# sell rate up
-SELL_UP_RATE = 1.5
-# sell rate down
-SELL_DOWN_RATE = -0.5
+
 # telegram
-TELEGRAM_TOKEN = '1280370073:AAHFwcNtcS9pvqF29zJJKEOY0SvnW8NH1do'
-bot = telegram.Bot(token = TELEGRAM_TOKEN)
-# telgram send flag
-TELEGRAM_SEND_FLAG = False
+bot = telegram.Bot(token = stock_constant.TELEGRAM_TOKEN)
 
 ##################################################
 # function
@@ -131,10 +85,10 @@ def executeDB(sqlText,sqlParam):
 # stock info top list crawling
 def getStocInfoTopList():
     resp = None
-    if PROXY_USE_FLAG :
-        resp = requests.get(BASE_URL+CRAWLING_TOP_LIST_URL,proxies=PROXY_DICT)       
+    if stock_constant.PROXY_USE_FLAG :
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TOP_LIST_URL,proxies=stock_constant.PROXY_DICT)       
     else:
-        resp = requests.get(BASE_URL+CRAWLING_TOP_LIST_URL)
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TOP_LIST_URL)
 
     html = resp.text
 
@@ -161,12 +115,12 @@ def getStocInfoTopList():
     # print(codeData)
 
     # 종목 데이타 정리 
-    # - 등락율 상승 종목 이며 현재가 CURRENT_AMOUNT_MAX 이하인 종목만 필터링 후 종목 코드 결합
+    # - 등락율 상승 종목 이며 현재가 stock_constant.CURRENT_AMOUNT_MAX 이하인 종목만 필터링 후 종목 코드 결합
     filterData = []
     for idx, data in enumerate(infoData):
         # print(idx, data)
         # 0 순위 | 1 종목명 | 2 검색비율 | 3 현재가 | 4 전일비 | 5 등락률 | 6 거래량 | 7 시가 | 8 고가 | 9 저가 | 10 PER | 11 ROE
-        if int(data[3]) <= CURRENT_AMOUNT_MAX and data[5][0] == "+":
+        if int(data[3]) <= stock_constant.CURRENT_AMOUNT_MAX and data[5][0] == "+":
             # print(data)
             filterData.append((float(data[2]) ,codeData[idx].replace("/item/main.nhn?code=","")
             ,data[1] ,data[2] ,data[3] ,data[4] ,data[5]
@@ -184,10 +138,10 @@ def getStocInfoTopList():
 def getStocItemDayInfo(stock_code):
     log('--- stock item day trend ---'+stock_code,"N")
     resp = None
-    if PROXY_USE_FLAG :
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_DAY_URL+stock_code,proxies=PROXY_DICT)       
+    if stock_constant.PROXY_USE_FLAG :
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code,proxies=stock_constant.PROXY_DICT)       
     else:
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_DAY_URL+stock_code)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code)       
 
     html = resp.text
 
@@ -208,10 +162,10 @@ def getStocItemDayInfo(stock_code):
 def getStocItemTimeInfo(stock_code):
     log('--- stock item time trend ---'+stock_code,"N")
     resp = None
-    if PROXY_USE_FLAG :
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=PROXY_DICT)       
+    if stock_constant.PROXY_USE_FLAG :
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=stock_constant.PROXY_DICT)       
     else:
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"))       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"))       
 
     html = resp.text
 
@@ -231,10 +185,10 @@ def getStocItemTimeInfo(stock_code):
 # stock info deatail data crawling
 def getStocInfoData(data,status):
     resp = None
-    if PROXY_USE_FLAG :
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_URL+data[1],proxies=PROXY_DICT)        
+    if stock_constant.PROXY_USE_FLAG :
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1],proxies=stock_constant.PROXY_DICT)        
     else:
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_URL+data[1])
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1])
         
     html = resp.text
     bs = bs4.BeautifulSoup(html, 'html.parser')    
@@ -254,16 +208,20 @@ def getStocInfoData(data,status):
     item_text +=" 구매금액 : "+fill_str_space(str(format(int(data[7]), ',')))
     item_text +=" 현재금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]),',')))
     item_text +=" 등락율 : "+ fill_str_space(str(round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2))+"%")
-    item_text +=" 수익금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]) - int(data[7]),',')))
+    # 현재 값  - 수수료 - 세금 
+    now_amt = int(current_Amt.replace(",",""))*int(data[6])
+    commission_amt = ((int(data[4])*stock_constant.STOCK_COMMISSION_RATE)/100) + (now_amt * stock_constant.STOCK_COMMISSION_RATE) / 100
+    tax_amt = (now_amt * stock_constant.STOCK_TAX_RATE) / 100
+    item_text +=" 수익금액 : "+fill_str_space(str(format(int((now_amt - commission_amt - tax_amt )- int(data[7])),',')))
     
     print(item_text)   
 
     if data[3] == "I" :
-        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) >= SELL_UP_RATE) :
+        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) >= stock_constant.SELL_UP_RATE) :
             sellStock(data,current_Amt)
             log('▲ sell : '+item_text,"Y")
 
-        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) <= SELL_DOWN_RATE) :
+        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) <= stock_constant.SELL_DOWN_RATE) :
             sellStock(data,current_Amt)
             log('▼ sell : '+item_text,"Y")
 
@@ -279,9 +237,8 @@ def getStocInfoData(data,status):
 def purchaseStock(stockData):
     if len(stockData) > 0 :
        fundCol,fundData = searchAllData(STOCK_VERSION_META_TABLE)         
-       crt_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-       nowTime = int(datetime.datetime.now().strftime("%H%M%S"))       
-       if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
+       crt_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")       
+       if stock_closed_daytime.ClosedDayTime().is_stockOpenDayTime():
             if len(fundData) > 0 :
                 for idx, data in enumerate(stockData):
                     if int(fundData[0][0]) >= int((data[4])) :
@@ -312,16 +269,19 @@ def changeStockItemStatus(stockData,status,current_Amt):
 # sell stock
 def sellStock(stockData,current_Amt):
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6])
+    # 현재 값  - 수수료 - 세금 
+    now_amt = int(current_Amt.replace(",",""))*int(stockData[6])
+    commission_amt = ((int(stockData[4])*stock_constant.STOCK_COMMISSION_RATE)/100) + (now_amt * stock_constant.STOCK_COMMISSION_RATE) / 100
+    tax_amt = (now_amt * stock_constant.STOCK_TAX_RATE) / 100
+    sell_amt = int(now_amt - commission_amt - tax_amt)
     sql = "update "+STOCK_VERSION_TABLE+" set status= ?, sell_current_amt = ?, sell_amt = ? ,chg_dttm = ? where id = ?"
     sqlParam =  ('C' , current_Amt , sell_amt , chg_dttm , stockData[0])
     executeDB(sql,sqlParam)
 
 # purchase stock monitoring
 def purchaseStockMonitoring(purchaseData):
-    log('--- stock info monitoring ---',"N")
-    nowTime = int(datetime.datetime.now().strftime("%H%M%S"))
-    if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
+    log('--- stock info monitoring ---',"N")    
+    if stock_closed_daytime.ClosedDayTime().is_stockOpenDayTime():
         for idx, data in enumerate(purchaseData):
             getStocInfoData(data,"ING")
     else:
@@ -346,7 +306,7 @@ def send_telegram_msg(msg):
 
 # log 
 def log(msg,push_yn):
-    if TELEGRAM_SEND_FLAG:
+    if stock_constant.TELEGRAM_SEND_FLAG:
         push_yn = push_yn
     else:
         push_yn = "N"
@@ -381,15 +341,15 @@ def main_process():
         purchaseStockMonitoring(purchaseData)
 
 ##################################################
+# main
 
-##################################################
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
-    scheduler.add_job(main_process, 'interval', seconds=INTERVAL_SECONDS)
+    scheduler.add_job(main_process, 'interval', seconds=stock_constant.INTERVAL_SECONDS)
     main_process()
     try:
         scheduler.start()
     except Exception as err:
         print(err)
-##################################################
+
 

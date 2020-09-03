@@ -8,11 +8,14 @@
 #
 # 개요 - 프로세스 설명
 #
-# 프로그램 실행 유효 시간 : 09:05 ~ 15:00
-#
 # 네이버 주식 (https://finance.naver.com/) Site - Crawling
 #
 # 1.주식 사이트 정보를 Crawling 하여 대상 종목 선정
+# 종목 선택 및 DB 저장 
+# - stock_vX_x 테이블 status 컬럼 값이 I가 없는 경우
+# - 등락율 상승 항목
+# - 현재가 값이 매수가 MAX 보다 이하인 항목
+# - Filter 된 종목 status P 상태로 DB 저장
 #
 # 2.임시 저장 좀목 시세별 시세 모니터링 ( status : P )
 # - 일별 / 시세별 데이타  거래량 모니터링 분석 
@@ -20,28 +23,13 @@
 # - 분석된 결과를 토대로 한 종목의 상태를 I 갱신 후 임시 항목 삭제
 #
 # 3.저장 종목 모니터링 및 매도/매수 알림 
-# - stock_v6테이블 status 컬럼 값이 I 인 종목 대상
+# - stock_vX_x 테이블 status 컬럼 값이 I 인 종목 대상
 # - 배치 주기에 따른 종목별 상세 데이타 모니터링 
 # - 등락율 SELL_UP_RATE , SELL_DOWN_RATE 시 매매 (status : C)
 # - 매도/매수 처리 시 telegram 알림 전송
 #
 ##################################################
-#
-# > seqlite3 install  && sqlite location PATH add
-#
-# > create table schema
-#   - sqlite3 stock.db
-# 
-#   create table stock_v6_x_meta (current_amt text);
-#   insert into stock_v6_x_meta (current_amt) values ('500000');
-#
-#   create table stock_v6_x (id integer primary key autoincrement, code text, item text, status text
-#       , purchase_current_amt text , sell_current_amt text, purchase_count text
-#       , purchase_amt text , sell_amt text, crt_dttm text, chg_dttm text);
-#
-# > telegram setting
-#   BotFather -> /newbot -> devsunetstock -> devsunsetstock_bot - > get api key 
-# 
+
 ##################################################
 # import
 
@@ -51,81 +39,18 @@ import datetime
 import math
 import unicodedata
 import random
-# install library
-# $ pip install requests beautifulsoup4 apscheduler python-telegram-bot
 import requests
 import bs4
 import telegram
 from apscheduler.schedulers.blocking import BlockingScheduler
+import stock_closed_daytime
+import stock_constant
+
 ##################################################
 # constant
 
-# proxy use
-PROXY_USE_FLAG = False
-# Proxy info
-HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
-HTTPS_PROXY = "http://xxx.xxx.xxx.xxx:xxxx"
-PROXY_DICT = { 
-              "http"  : HTTP_PROXY, 
-              "https" : HTTPS_PROXY
-            }
-# 선택 종목 금액 MAX
-CURRENT_AMOUNT_MAX = 150000
-# 프로그램 실행 주기 
-INTERVAL_SECONDS = 60
-# sell rate up 
-SELL_UP_RATE = 1.5
-# sell rate down
-SELL_DOWN_RATE = -0.5   
-# 최근 종가 체크 단위 일수 
-RECENT_DAY_UNIT = 3
-# 종목 체크 최대 갯수
-MAX_STOCK_ITEM = 30
-# 프로그램 시작 시간
-START_TIME = "090005"
-# 프로그램 종료 시간
-END_TIME = "150000"
-# base url
-BASE_URL = "https://finance.naver.com"
-# crawling target
-CRAWLING_TARGET = [
- {'idx':0,'title':'검색상위 종목','url':'/sise/lastsearch2.nhn','css_class':'type_5','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':3,'uprateIdx':5}   
-,{'idx':1,'title':'시가총액 코스피','url':'/sise/sise_market_sum.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':13, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}   
-,{'idx':2,'title':'시가총액 코스닥','url':'/sise/sise_market_sum.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':13, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':3,'title':'상승 코스피','url':'/sise/sise_rise.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':4,'title':'상승 코스닥','url':'/sise/sise_rise.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':5,'title':'상한가 코스피/코스닥','url':'/sise/sise_upper.nhn','css_class':'type_5','sortIdx':11 , 'reverse':False ,'checklength':12, 'codeNameIdx':3,'current_amtIdx':4,'uprateIdx':6}
-,{'idx':6,'title':'저가대비급등 코스피','url':'/sise/sise_low_up.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':7,'title':'저가대비급등 코스닥','url':'/sise/sise_low_up.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':8,'title':'거래상위 코스피','url':'/sise/sise_quant.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':9,'title':'거래상위 코스닥','url':'/sise/sise_quant.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':10,'title':'거래량 급증 코스피','url':'/sise/sise_quant_high.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':11, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':11,'title':'거래량 급증 코스닥','url':'/sise/sise_quant_high.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':11, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':12,'title':'신규상장종목 코스피','url':'/sise/sise_new_stock.nhn?sosok=0','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':13,'title':'신규상장종목 코스닥','url':'/sise/sise_new_stock.nhn?sosok=1','css_class':'type_2','sortIdx':10 , 'reverse':False ,'checklength':12, 'codeNameIdx':2,'current_amtIdx':3,'uprateIdx':5}
-,{'idx':14,'title':'외국인보유현황 코스피','url':'/sise/sise_foreign_hold.nhn?sosok=0','css_class':'type_2','sortIdx':8 , 'reverse':False ,'checklength':10, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':15,'title':'외국인보유현황 코스닥','url':'/sise/sise_foreign_hold.nhn?sosok=1','css_class':'type_2','sortIdx':8 , 'reverse':False ,'checklength':10, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':16,'title':'골든크로스 종목','url':'/sise/item_gold.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':17,'title':'갭상승 종목','url':'/sise/item_gap.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':18,'title':'이격도과열 종목','url':'/sise/item_igyuk.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':19,'title':'투자심리과열 종목','url':'/sise/item_overheating_1.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-,{'idx':20,'title':'상대강도과열 종목','url':'/sise/item_overheating_2.nhn','css_class':'type_5','sortIdx':9 , 'reverse':False ,'checklength':11, 'codeNameIdx':1,'current_amtIdx':2,'uprateIdx':4}
-] 
-CRAWING_EXCLUDE_TARGET =[
- {'idx':0,'title':'관리종목','url':'/sise/management.nhn'}
-,{'idx':1,'title':'거래정지종목','url':'/sise/trading_halt.nhn'}
-,{'idx':2,'title':'시장경보 - 투자 주의 종목','url':'/sise/investment_alert.nhn?type=caution'}
-,{'idx':3,'title':'시장경보 - 투자 경보 종목','url':'/sise/investment_alert.nhn?type=warning'}
-,{'idx':4,'title':'시장경보 - 투자 위험 종목','url':'/sise/investment_alert.nhn?type=risk'}
-]      
-CRAWLING_ITEM_URL = "/item/main.nhn?code="
-CRAWLING_ITEM_DAY_URL = "/item/sise_day.nhn?page=1&code="
-CRAWLING_ITEM_TIME_URL = "/item/sise_time.nhn?page=1&code="  
 # telegram
-TELEGRAM_TOKEN = '1280370073:AAHFwcNtcS9pvqF29zJJKEOY0SvnW8NH1do'
-bot = telegram.Bot(token = TELEGRAM_TOKEN)
-# telgram send flag
-TELEGRAM_SEND_FLAG = False
+bot = telegram.Bot(token = stock_constant.TELEGRAM_TOKEN)
 
 ##################################################
 # function
@@ -160,10 +85,10 @@ def executeDB(sqlText,sqlParam=None):
 # stock item list crawling
 def getStocInfoItemList(RUN_CMD_INDEX,excludeData):
     resp = None    
-    if PROXY_USE_FLAG :
-        resp = requests.get(BASE_URL+CRAWLING_TARGET[RUN_CMD_INDEX]['url'],proxies=PROXY_DICT)       
+    if stock_constant.PROXY_USE_FLAG :
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['url'],proxies=stock_constant.PROXY_DICT)       
     else:
-        resp = requests.get(BASE_URL+CRAWLING_TARGET[RUN_CMD_INDEX]['url'])
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['url'])
 
     html = resp.text
 
@@ -171,13 +96,13 @@ def getStocInfoItemList(RUN_CMD_INDEX,excludeData):
     infoData = []
     if RUN_CMD_INDEX !=5 :
         bs = bs4.BeautifulSoup(html, 'html.parser')       
-        infoTable = bs.find("table",{"class":CRAWLING_TARGET[RUN_CMD_INDEX]['css_class']})    
+        infoTable = bs.find("table",{"class":stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['css_class']})    
         for a in infoTable.find_all("tr"):
             infolist = []
             for b in a.find_all("td"): 
                 info = b.get_text().replace(",","").replace("%","").replace("\n","").replace("\t","")
                 infolist.append(info)  
-            if len(infolist) == CRAWLING_TARGET[RUN_CMD_INDEX]['checklength']:
+            if len(infolist) == stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['checklength']:
                 infoData.append(infolist)
         # print(infoData)
     else:
@@ -188,7 +113,7 @@ def getStocInfoItemList(RUN_CMD_INDEX,excludeData):
             for b in tags[i].find_all("td"): 
                 info = b.get_text().replace(",","").replace("%","").replace("\n","").replace("\t","")
                 infolist.append(info)  
-            if len(infolist) == CRAWLING_TARGET[RUN_CMD_INDEX]['checklength']:
+            if len(infolist) == stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['checklength']:
                 infoData.append(infolist)
         # print(infoData)
 
@@ -202,25 +127,25 @@ def getStocInfoItemList(RUN_CMD_INDEX,excludeData):
     # print(codeData)    
     
     # 종목 데이타 정리 
-    # - 현재가 CURRENT_AMOUNT_MAX 이하인 종목만 필터링 후 종목 코드 결합    
-    if len(infoData) > MAX_STOCK_ITEM:
-        infoData = infoData[0:MAX_STOCK_ITEM]
+    # - 현재가 stock_constant.CURRENT_AMOUNT_MAX 이하인 종목만 필터링 후 종목 코드 결합    
+    if len(infoData) > stock_constant.MAX_STOCK_ITEM:
+        infoData = infoData[0:stock_constant.MAX_STOCK_ITEM]
 
     filterData = []
     for idx, data in enumerate(infoData):
         # print(idx, data)
-        # 현재가가 CURRENT_AMOUNT_MAX 이하 이며 등락율이 상승인 종목만 Filter
-        if codeData[idx].replace("/item/main.nhn?code=","") not in excludeData and int(data[CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]) <= CURRENT_AMOUNT_MAX and data[CRAWLING_TARGET[RUN_CMD_INDEX]['uprateIdx']][0] == "+":
+        # 현재가가 stock_constant.CURRENT_AMOUNT_MAX 이하 이며 등락율이 상승인 종목만 Filter
+        if codeData[idx].replace("/item/main.nhn?code=","") not in excludeData and int(data[stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]) <= stock_constant.CURRENT_AMOUNT_MAX and data[stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['uprateIdx']][0] == "+":
             # print(data)
-            if data[CRAWLING_TARGET[RUN_CMD_INDEX]['sortIdx']] == 'N/A':
+            if data[stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['sortIdx']] == 'N/A':
                  filterData.append((float(1) ,codeData[idx].replace("/item/main.nhn?code=","")
-                , data[CRAWLING_TARGET[RUN_CMD_INDEX]['codeNameIdx']] ,data[CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]))
+                , data[stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['codeNameIdx']] ,data[stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]))
             else:
-                filterData.append((float(data[CRAWLING_TARGET[RUN_CMD_INDEX]['sortIdx']]) ,codeData[idx].replace("/item/main.nhn?code=","")
-                , data[CRAWLING_TARGET[RUN_CMD_INDEX]['codeNameIdx']] ,data[CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]))
+                filterData.append((float(data[stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['sortIdx']]) ,codeData[idx].replace("/item/main.nhn?code=","")
+                , data[stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['codeNameIdx']] ,data[stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['current_amtIdx']]))
 
     #정렬
-    filterData.sort(key = lambda element : element[0],reverse=CRAWLING_TARGET[RUN_CMD_INDEX]['reverse'])
+    filterData.sort(key = lambda element : element[0],reverse=stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['reverse'])
     # if len(filterData) > 0 :
     #     for idx, data in enumerate(filterData):
     #         print("추천 종목 ",idx,":",data)
@@ -231,11 +156,11 @@ def getExcludeStocInfoItemList():
     resp = None    
     codeData = []
 
-    for idx, data in enumerate(CRAWING_EXCLUDE_TARGET):      
-        if PROXY_USE_FLAG :
-            resp = requests.get(BASE_URL+CRAWING_EXCLUDE_TARGET[idx]['url'],proxies=PROXY_DICT)       
+    for idx, data in enumerate(stock_constant.CRAWING_EXCLUDE_TARGET):      
+        if stock_constant.PROXY_USE_FLAG :
+            resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWING_EXCLUDE_TARGET[idx]['url'],proxies=stock_constant.PROXY_DICT)       
         else:
-            resp = requests.get(BASE_URL+CRAWING_EXCLUDE_TARGET[idx]['url'])
+            resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWING_EXCLUDE_TARGET[idx]['url'])
 
         html = resp.text
 
@@ -254,10 +179,10 @@ def getExcludeStocInfoItemList():
 def getStocItemDayInfo(stock_code):
     # log('--- stock item day trend ---'+stock_code,"N")
     resp = None
-    if PROXY_USE_FLAG :
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_DAY_URL+stock_code,proxies=PROXY_DICT)       
+    if stock_constant.PROXY_USE_FLAG :
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code,proxies=stock_constant.PROXY_DICT)       
     else:
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_DAY_URL+stock_code)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code)       
 
     html = resp.text
 
@@ -280,10 +205,10 @@ def getStocItemDayInfo(stock_code):
 def getStocItemTimeInfo(stock_code):
     # log('--- stock item time trend ---'+stock_code,"N")
     resp = None
-    if PROXY_USE_FLAG :
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=PROXY_DICT)       
+    if stock_constant.PROXY_USE_FLAG :
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=stock_constant.PROXY_DICT)       
     else:
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"))       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"))       
 
     html = resp.text
 
@@ -305,10 +230,10 @@ def getStocItemTimeInfo(stock_code):
 # stock info deatail data crawling
 def getStocInfoData(data,status,VERSION_META_TABLE,VERSION_TABLE):
     resp = None
-    if PROXY_USE_FLAG :
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_URL+data[1],proxies=PROXY_DICT)        
+    if stock_constant.PROXY_USE_FLAG :
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1],proxies=stock_constant.PROXY_DICT)        
     else:
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_URL+data[1])
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1])
         
     html = resp.text
     bs = bs4.BeautifulSoup(html, 'html.parser')    
@@ -329,16 +254,20 @@ def getStocInfoData(data,status,VERSION_META_TABLE,VERSION_TABLE):
         item_text +=" 구매금액 : "+fill_str_space(str(format(int(data[7]), ',')))
         item_text +=" 현재금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]),',')))
         item_text +=" 등락율 : "+ fill_str_space(str(round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2))+"%")
-        item_text +=" 수익금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]) - int(data[7]),',')))
+        # 현재 값  - 수수료 - 세금 
+        now_amt = int(current_Amt.replace(",",""))*int(data[6])
+        commission_amt = ((int(data[4])*stock_constant.STOCK_COMMISSION_RATE)/100) + (now_amt * stock_constant.STOCK_COMMISSION_RATE) / 100
+        tax_amt = (now_amt * stock_constant.STOCK_TAX_RATE) / 100
+        item_text +=" 수익금액 : "+fill_str_space(str(format(int((now_amt - commission_amt - tax_amt )- int(data[7])),',')))
 
         log(item_text,"N")
         processing = True
 
-        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) >= SELL_UP_RATE) :
+        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) >= stock_constant.SELL_UP_RATE) :
             sellStock(data,current_Amt,VERSION_META_TABLE,VERSION_TABLE,'▲ sell : '+item_text)
             processing = False
 
-        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) <= SELL_DOWN_RATE) :
+        if (round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2) <= stock_constant.SELL_DOWN_RATE) :
             sellStock(data,current_Amt,VERSION_META_TABLE,VERSION_TABLE,'▼ sell : '+item_text)
             processing = False
 
@@ -354,7 +283,11 @@ def getStocInfoData(data,status,VERSION_META_TABLE,VERSION_TABLE):
         item_text +=" 구매금액 : "+fill_str_space(str(format(int(data[7]), ',')))
         item_text +=" 현재금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]),',')))
         item_text +=" 등락율 : "+ fill_str_space(str(round(((int(current_Amt.replace(",",""))*int(data[6])) - int(data[7])) / int(data[7]) * 100 ,2))+"%")
-        item_text +=" 수익금액 : "+fill_str_space(str(format(int(current_Amt.replace(",",""))*int(data[6]) - int(data[7]),',')))
+        # 현재 값  - 수수료 - 세금 
+        now_amt = int(current_Amt.replace(",",""))*int(data[6])
+        commission_amt = ((int(data[4])*stock_constant.STOCK_COMMISSION_RATE)/100) + (now_amt * stock_constant.STOCK_COMMISSION_RATE) / 100
+        tax_amt = (now_amt * stock_constant.STOCK_TAX_RATE) / 100
+        item_text +=" 수익금액 : "+fill_str_space(str(format(int((now_amt - commission_amt - tax_amt )- int(data[7])),',')))
 
         log(item_text,"N")
 
@@ -364,9 +297,7 @@ def getStocInfoData(data,status,VERSION_META_TABLE,VERSION_TABLE):
 
 # temp pusrchase stock
 def tempPurchaseStock(stockData,VERSION_META_TABLE,VERSION_TABLE):
-    nowTime = int(datetime.datetime.now().strftime("%H%M%S"))   
-
-    if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
+    if stock_closed_daytime.ClosedDayTime().is_stockOpenDayTime():
         if len(stockData) > 0 :
             fundCol,fundData = searchAllData(VERSION_META_TABLE)         
             crt_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")          
@@ -402,12 +333,16 @@ def purchaseStock(stockData,current_Amt,VERSION_META_TABLE,VERSION_TABLE):
 
     tmpIdx = VERSION_META_TABLE
     tmpIdx = tmpIdx.replace("stock_v6_","").replace("_meta","")
-    log('['+CRAWLING_TARGET[int(tmpIdx)]['title']+'] purchase :'+str(stockData),"Y")     
+    log('['+stock_constant.CRAWLING_TARGET[int(tmpIdx)]['title']+'] purchase :'+str(stockData),"Y")     
 
 # sell stock
 def sellStock(stockData,current_Amt,VERSION_META_TABLE,VERSION_TABLE,msg):
     chg_dttm = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sell_amt = int(current_Amt.replace(",",""))*int(stockData[6])
+    # 현재 값  - 수수료 - 세금 
+    now_amt = int(current_Amt.replace(",",""))*int(stockData[6])
+    commission_amt = ((int(stockData[4])*stock_constant.STOCK_COMMISSION_RATE)/100) + (now_amt * stock_constant.STOCK_COMMISSION_RATE) / 100
+    tax_amt = (now_amt * stock_constant.STOCK_TAX_RATE) / 100
+    sell_amt = int(now_amt - commission_amt - tax_amt)
     sql = "update "+VERSION_TABLE+" set status= ?, sell_current_amt = ?, sell_amt = ? ,chg_dttm = ? where id = ?"
     sqlParam =  ('C' , current_Amt , sell_amt , chg_dttm , stockData[0])
     executeDB(sql,sqlParam)
@@ -417,7 +352,7 @@ def sellStock(stockData,current_Amt,VERSION_META_TABLE,VERSION_TABLE,msg):
 
     tmpIdx = VERSION_META_TABLE
     tmpIdx = tmpIdx.replace("stock_v6_","").replace("_meta","")
-    log('['+CRAWLING_TARGET[int(tmpIdx)]['title']+'] '+msg,"Y")
+    log('['+stock_constant.CRAWLING_TARGET[int(tmpIdx)]['title']+'] '+msg,"Y")
 
 # delete temp stock
 def deleteTempStock(VERSION_TABLE):
@@ -428,9 +363,8 @@ def deleteTempStock(VERSION_TABLE):
     log('--- temp stock info delete ---',"N")
 
 # stock monitoring
-def stockMonitoring(purchaseData,VERSION_META_TABLE,VERSION_TABLE):   
-    nowTime = int(datetime.datetime.now().strftime("%H%M%S"))
-    if int(START_TIME) <=  nowTime and nowTime <= int(END_TIME):
+def stockMonitoring(purchaseData,VERSION_META_TABLE,VERSION_TABLE):       
+    if stock_closed_daytime.ClosedDayTime().is_stockOpenDayTime():
         log('--- stock monitoring ---',"N")
         initStock = False    
         for idx, data in enumerate(purchaseData):
@@ -460,7 +394,7 @@ def send_telegram_msg(msg):
 
 # log 
 def log(msg,push_yn):
-    if TELEGRAM_SEND_FLAG:
+    if stock_constant.TELEGRAM_SEND_FLAG:
         push_yn = push_yn
     else:
         push_yn = "N"
@@ -484,7 +418,7 @@ def fill_str_space(input_s="", max_size=10, fill_char=" "):
 # main process
 def main_process():   
     excludeData = getExcludeStocInfoItemList()
-    for idx, data in enumerate(CRAWLING_TARGET):  
+    for idx, data in enumerate(stock_constant.CRAWLING_TARGET):  
         print('python stock_v6.py ',idx ,data['title'])
         RUN_CMD_INDEX = idx
         VERSION_META_TABLE = 'stock_v6_'+str(idx)+'_meta'
@@ -508,7 +442,7 @@ def choiceStock(stockData,VERSION_META_TABLE,VERSION_TABLE):
     if len(stockData) > 0 :
     # ----------------------------------------------------------------
     # Filter Condition
-        # 일별 시세 종가 값이 최근 RECENT_DAY_UNIT 일 동안 증가 중인 항목
+        # 일별 시세 종가 값이 최근 stock_constant.RECENT_DAY_UNIT 일 동안 증가 중인 항목
         # 시간별 시세 체결가 값이 어제의 종가 보다 높은 항목        
     # ----------------------------------------------------------------        
         for idx, data in enumerate(stockData):                 
@@ -548,7 +482,7 @@ def choiceStock(stockData,VERSION_META_TABLE,VERSION_TABLE):
                             except:
                                 filter_yn = False     
 
-                            if i == RECENT_DAY_UNIT:
+                            if i == stock_constant.RECENT_DAY_UNIT:
                                 break
                         
                         if filter_yn == True:
@@ -567,13 +501,15 @@ def choiceStock(stockData,VERSION_META_TABLE,VERSION_TABLE):
     deleteTempStock(VERSION_TABLE)
 
 ##################################################
+# main
+
 if __name__ == '__main__':
     scheduler = BlockingScheduler()
-    scheduler.add_job(main_process, 'interval', seconds=INTERVAL_SECONDS)
+    scheduler.add_job(main_process, 'interval', seconds=stock_constant.INTERVAL_SECONDS)
     main_process()
     try:
         scheduler.start()
     except Exception as err:
         print(err)
-##################################################
+
 

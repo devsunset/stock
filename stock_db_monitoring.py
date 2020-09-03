@@ -1,37 +1,26 @@
 ##################################################
 #
-#          stock_db_monitoring program ( version stock_v7 over)
+#          stock_db_monitoring program ( version stock_v3 after)
 #
 ##################################################
+
+##################################################
 # import
+
 import sqlite3
 import unicodedata
-# install library
-# $ pip install requests beautifulsoup4 apscheduler
 import requests
 import bs4
 from apscheduler.schedulers.blocking import BlockingScheduler
-
-import stock_v9
+import stock_constant
 
 ##################################################
 # constant
+
+# 현재 모니터링 테이블 버젼
 table_version = 9
-current_amt = 500000
 # 프로그램 실행 주기 
-INTERVAL_SECONDS = 30
-# proxy use
-PROXY_USE_FLAG = False
-# Proxy info
-HTTP_PROXY  = "http://xxx.xxx.xxx.xxx:xxxx"
-HTTPS_PROXY = "http://xxx.xxx.xxx.xxx:xxxx"
-PROXY_DICT = { 
-              "http"  : HTTP_PROXY, 
-              "https" : HTTPS_PROXY
-            }
-# base url
-BASE_URL = "https://finance.naver.com"            
-CRAWLING_ITEM_URL = "/item/main.nhn?code="
+interval_seconds = 30
 
 ##################################################
 # function
@@ -39,20 +28,20 @@ CRAWLING_ITEM_URL = "/item/main.nhn?code="
 # stock current amt crawling
 def getStocCurrentAmt(code):
     resp = None
-    if PROXY_USE_FLAG :
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_URL+code,proxies=PROXY_DICT)        
+    if stock_constant.PROXY_USE_FLAG :
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+code,proxies=stock_constant.PROXY_DICT)        
     else:
-        resp = requests.get(BASE_URL+CRAWLING_ITEM_URL+code)
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+code)
         
     html = resp.text
     bs = bs4.BeautifulSoup(html, 'html.parser')    
 
-    current_Amt = bs.find("em",{"class":"no_up"}).find("span",{"class":"blind"}).get_text()
+    amt = bs.find("em",{"class":"no_up"}).find("span",{"class":"blind"}).get_text()
 
-    if current_Amt == None :
-        current_Amt = bs.find("em",{"class":"no_down"}).find("span",{"class":"blind"}).get_text()    
+    if amt == None :
+        amt = bs.find("em",{"class":"no_down"}).find("span",{"class":"blind"}).get_text()    
         
-    return int(current_Amt.replace(",",""))
+    return int(amt.replace(",",""))
 
 # fill space
 def fill_str_space(input_s="", max_size=10, fill_char=" "):
@@ -164,8 +153,8 @@ def getCurrentAmtData():
     # stockList = []
     for x, stock in enumerate(stockDataList):
         # print(stock)
-        print(fill_str_space('['+stock[0]+']',25),fill_str_space(stock[2],10),fill_str_space(stock[3],35),fill_str_space(stock[1],10),fill_str_space(format(current_amt,','),10),fill_str_space(format(int(stock[4]),','),10),fill_str_space('['+str(format(int(stock[4]) - current_amt,','))+']',10),' --- ',fill_str_space(format(stock[5],','),20),fill_str_space('['+str(format(int(stock[5]) - current_amt,','))+']',10))
-        # stockList.append(('['+stock[0]+']',stock[2],stock[3],stock[1],format(current_amt,','),format(int(stock[4]),','),'['+str(format(int(stock[4]) - current_amt,','))+']',' --- ',format(stock[5],','),'['+str(format(int(stock[5]) - current_amt,','))+']'))
+        print(fill_str_space('['+stock[0]+']',25),fill_str_space(stock[2],10),fill_str_space(stock[3],35),fill_str_space(stock[1],10),fill_str_space(format(stock_constant.CURRENT_AMT,','),10),fill_str_space(format(int(stock[4]),','),10),fill_str_space('['+str(format(int(stock[4]) - stock_constant.CURRENT_AMT,','))+']',10),' --- ',fill_str_space(format(stock[5],','),20),fill_str_space('['+str(format(int(stock[5]) - stock_constant.CURRENT_AMT,','))+']',10))
+        # stockList.append(('['+stock[0]+']',stock[2],stock[3],stock[1],format(stock_constant.CURRENT_AMT,','),format(int(stock[4]),','),'['+str(format(int(stock[4]) - stock_constant.CURRENT_AMT,','))+']',' --- ',format(stock[5],','),'['+str(format(int(stock[5]) - stock_constant.CURRENT_AMT,','))+']'))
     
 # main process
 def main_process():
@@ -177,17 +166,14 @@ if __name__ == '__main__':
     global CRAWLING_TARGET_FROM_MODULE
     CRAWLING_TARGET_FROM_MODULE = []
 
-    for idx, data in enumerate(stock_v9.CRAWLING_TARGET):
+    for idx, data in enumerate(stock_constant.CRAWLING_TARGET):
         if data['skip'] == False:
             CRAWLING_TARGET_FROM_MODULE.append(data)
 
     scheduler = BlockingScheduler()
-    scheduler.add_job(main_process, 'interval', seconds=INTERVAL_SECONDS)
+    scheduler.add_job(main_process, 'interval', seconds=interval_seconds)
     main_process()
     try:
         scheduler.start()
     except Exception as err:
         print(err)
-
-
-
