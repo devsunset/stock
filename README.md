@@ -16,6 +16,7 @@
      * version 1 ~ 3
      
      create table stock_vX_meta (current_amt text);
+     
      insert into stock_vX_meta (current_amt) values ('현재자금 ex) 500000');
 
      create table stock_vX (id integer primary key autoincrement, code text, item text, status text
@@ -26,6 +27,7 @@
      * version 4 ~ 9
      
      create table stock_vX_x_meta (current_amt text);
+     
      insert into stock_vX_x_meta (current_amt) values ('현재자금 ex) 500000');
 
      create table stock_vX_x (id integer primary key autoincrement, code text, item text, status text
