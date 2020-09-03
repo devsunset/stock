@@ -2,9 +2,9 @@
 --------------------------------------------------------------------------
 네이버 주식 (https://finance.naver.com/) - Crawling
 --------------------------------------------------------------------------
-- 0. install python
 
 - 1. install python library
+
      $ pip install requests beautifulsoup4 apscheduler python-telegram-bot
 
 - 2. seqlite3 install  && sqlite location PATH add
