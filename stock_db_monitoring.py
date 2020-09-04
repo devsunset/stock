@@ -135,10 +135,20 @@ def getCurrentAmtData():
                 status = ""
                 if data[0][0] == "I":
                     status = "진행중"
-                    stockDataList.append((dataTarget['title'],status,data[0][1],data[0][2],int(data[0][6]),int(data[0][3])+int(data[0][7])*getStocCurrentAmt(data[0][1])))
+                    # 현재 값  - 수수료 - 세금 
+                    now_amt = getStocCurrentAmt(data[0][1])*int(data[0][7])
+                    commission_amt = ((int(data[0][4])*stock_constant.STOCK_COMMISSION_RATE)/100) + (now_amt * stock_constant.STOCK_COMMISSION_RATE) / 100
+                    tax_amt = (now_amt * stock_constant.STOCK_TAX_RATE) / 100
+                    sell_amt = int(now_amt - commission_amt - tax_amt)                    
+                    stockDataList.append((dataTarget['title'],status,data[0][1],data[0][2],int(data[0][6]),int(data[0][3])+sell_amt))
                 elif  data[0][0] == "S":
                     status = "매도대기"
-                    stockDataList.append((dataTarget['title'],status,data[0][1],data[0][2],int(data[0][6]),int(data[0][3])+int(data[0][7])*getStocCurrentAmt(data[0][1])))
+                    # 현재 값  - 수수료 - 세금 
+                    now_amt = getStocCurrentAmt(data[0][1])*int(data[0][7])
+                    commission_amt = ((int(data[0][4])*stock_constant.STOCK_COMMISSION_RATE)/100) + (now_amt * stock_constant.STOCK_COMMISSION_RATE) / 100
+                    tax_amt = (now_amt * stock_constant.STOCK_TAX_RATE) / 100
+                    sell_amt = int(now_amt - commission_amt - tax_amt)        
+                    stockDataList.append((dataTarget['title'],status,data[0][1],data[0][2],int(data[0][6]),int(data[0][3])+sell_amt))
                 else:                    
                     status = "매도완료"
                     stockDataList.append((dataTarget['title'],status,data[0][1],data[0][2],int(data[0][6]),int(data[0][6])))            
@@ -150,11 +160,10 @@ def getCurrentAmtData():
     print('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------')
     print(fill_str_space('분류',25),fill_str_space('종목코드',10),fill_str_space('종목명',35),fill_str_space('상태',10),fill_str_space('최초자산',10),fill_str_space('현재자산',10),fill_str_space('이익',10),' --- ', fill_str_space('실시간현재 자산',20),fill_str_space('실시간 이익',10))
     print('--------------------------------------------------------------------------------------------------------------------------------------------------------------------------')
-    # stockList = []
-    for x, stock in enumerate(stockDataList):
-        # print(stock)
+    
+    for x, stock in enumerate(stockDataList):    
         print(fill_str_space('['+stock[0]+']',25),fill_str_space(stock[2],10),fill_str_space(stock[3],35),fill_str_space(stock[1],10),fill_str_space(format(stock_constant.CURRENT_AMT,','),10),fill_str_space(format(int(stock[4]),','),10),fill_str_space('['+str(format(int(stock[4]) - stock_constant.CURRENT_AMT,','))+']',10),' --- ',fill_str_space(format(stock[5],','),20),fill_str_space('['+str(format(int(stock[5]) - stock_constant.CURRENT_AMT,','))+']',10))
-        # stockList.append(('['+stock[0]+']',stock[2],stock[3],stock[1],format(stock_constant.CURRENT_AMT,','),format(int(stock[4]),','),'['+str(format(int(stock[4]) - stock_constant.CURRENT_AMT,','))+']',' --- ',format(stock[5],','),'['+str(format(int(stock[5]) - stock_constant.CURRENT_AMT,','))+']'))
+        
     
 # main process
 def main_process():
