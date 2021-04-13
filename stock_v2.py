@@ -55,6 +55,8 @@ STOCK_VERSION_TABLE = 'stock_v2'
 # telegram
 bot = telegram.Bot(token = stock_constant.TELEGRAM_TOKEN)
 
+headers = {"User-Agent": stock_constant.USER_AGENT}
+
 ##################################################
 # function
 
@@ -86,9 +88,9 @@ def executeDB(sqlText,sqlParam):
 def getStocInfoTopList():
     resp = None
     if stock_constant.PROXY_USE_FLAG :
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TOP_LIST_URL,proxies=stock_constant.PROXY_DICT)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TOP_LIST_URL,proxies=stock_constant.PROXY_DICT, headers=headers)       
     else:
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TOP_LIST_URL)
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TOP_LIST_URL, headers=headers)
 
     html = resp.text
 
@@ -139,9 +141,9 @@ def getStocItemDayInfo(stock_code):
     log('--- stock item day trend ---'+stock_code,"N")
     resp = None
     if stock_constant.PROXY_USE_FLAG :
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code,proxies=stock_constant.PROXY_DICT)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code,proxies=stock_constant.PROXY_DICT, headers=headers)       
     else:
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code, headers=headers)       
 
     html = resp.text
 
@@ -163,9 +165,9 @@ def getStocItemTimeInfo(stock_code):
     log('--- stock item time trend ---'+stock_code,"N")
     resp = None
     if stock_constant.PROXY_USE_FLAG :
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=stock_constant.PROXY_DICT)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=stock_constant.PROXY_DICT, headers=headers)       
     else:
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"))       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"), headers=headers)       
 
     html = resp.text
 
@@ -186,9 +188,9 @@ def getStocItemTimeInfo(stock_code):
 def getStocInfoData(data,status):
     resp = None
     if stock_constant.PROXY_USE_FLAG :
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1],proxies=stock_constant.PROXY_DICT)        
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1],proxies=stock_constant.PROXY_DICT, headers=headers)        
     else:
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1])
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1], headers=headers)
         
     html = resp.text
     bs = bs4.BeautifulSoup(html, 'html.parser')    
@@ -300,7 +302,7 @@ def send_telegram_msg(msg):
     # http request sendMessage
     # teleurl = "https://api.telegram.org/bot1280370073:AAHFwcNtcS9pvqF29zJJKEOY0SvnW8NH1do/sendMessage"
     # params = {'chat_id': chat_id, 'text': msg} 
-    # res = requests.get(teleurl, params=params)
+    # res = requests.get(teleurl, params=params, headers=headers)
   except Exception as err:
     print(err)
 

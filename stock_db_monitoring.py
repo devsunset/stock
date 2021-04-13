@@ -22,6 +22,8 @@ table_version = 9
 # 프로그램 실행 주기 
 interval_seconds = 30
 
+headers = {"User-Agent": stock_constant.USER_AGENT}
+
 ##################################################
 # function
 
@@ -29,9 +31,9 @@ interval_seconds = 30
 def getStocCurrentAmt(code):
     resp = None
     if stock_constant.PROXY_USE_FLAG :
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+code,proxies=stock_constant.PROXY_DICT)        
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+code,proxies=stock_constant.PROXY_DICT, headers=headers)        
     else:
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+code)
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+code, headers=headers)
         
     html = resp.text
     bs = bs4.BeautifulSoup(html, 'html.parser')    

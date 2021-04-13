@@ -52,6 +52,8 @@ import stock_constant
 # telegram
 bot = telegram.Bot(token = stock_constant.TELEGRAM_TOKEN)
 
+headers = {"User-Agent": stock_constant.USER_AGENT}
+
 ##################################################
 # function
 
@@ -86,9 +88,9 @@ def executeDB(sqlText,sqlParam=None):
 def getStocInfoItemList(RUN_CMD_INDEX,excludeData):
     resp = None    
     if stock_constant.PROXY_USE_FLAG :
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['url'],proxies=stock_constant.PROXY_DICT)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['url'],proxies=stock_constant.PROXY_DICT, headers=headers)       
     else:
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['url'])
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_TARGET[RUN_CMD_INDEX]['url'], headers=headers)
 
     html = resp.text
 
@@ -158,9 +160,9 @@ def getExcludeStocInfoItemList():
 
     for idx, data in enumerate(stock_constant.CRAWING_EXCLUDE_TARGET):      
         if stock_constant.PROXY_USE_FLAG :
-            resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWING_EXCLUDE_TARGET[idx]['url'],proxies=stock_constant.PROXY_DICT)       
+            resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWING_EXCLUDE_TARGET[idx]['url'],proxies=stock_constant.PROXY_DICT, headers=headers)       
         else:
-            resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWING_EXCLUDE_TARGET[idx]['url'])
+            resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWING_EXCLUDE_TARGET[idx]['url'], headers=headers)
 
         html = resp.text
 
@@ -180,9 +182,9 @@ def getStocItemDayInfo(stock_code):
     # log('--- stock item day trend ---'+stock_code,"N")
     resp = None
     if stock_constant.PROXY_USE_FLAG :
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code,proxies=stock_constant.PROXY_DICT)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code,proxies=stock_constant.PROXY_DICT, headers=headers)       
     else:
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_DAY_URL+stock_code, headers=headers)       
 
     html = resp.text
 
@@ -206,9 +208,9 @@ def getStocItemTimeInfo(stock_code):
     # log('--- stock item time trend ---'+stock_code,"N")
     resp = None
     if stock_constant.PROXY_USE_FLAG :
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=stock_constant.PROXY_DICT)       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"),proxies=stock_constant.PROXY_DICT, headers=headers)       
     else:
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"))       
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_TIME_URL+stock_code+"&thistime="+datetime.datetime.now().strftime("%Y%m%d%H%M%S"), headers=headers)       
 
     html = resp.text
 
@@ -231,9 +233,9 @@ def getStocItemTimeInfo(stock_code):
 def getStocInfoData(data,status,VERSION_META_TABLE,VERSION_TABLE):
     resp = None
     if stock_constant.PROXY_USE_FLAG :
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1],proxies=stock_constant.PROXY_DICT)        
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1],proxies=stock_constant.PROXY_DICT, headers=headers)        
     else:
-        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1])
+        resp = requests.get(stock_constant.BASE_URL+stock_constant.CRAWLING_ITEM_URL+data[1], headers=headers)
         
     html = resp.text
     bs = bs4.BeautifulSoup(html, 'html.parser')    
