@@ -1,6 +1,6 @@
 # stock(python)
 --------------------------------------------------------------------------
-네이버 주식 (https://finance.naver.com/) - Crawling
+네이버 주식 (https://finance.naver.com/) - Crawling example
 --------------------------------------------------------------------------
 
 - 1. install python library
@@ -38,19 +38,4 @@
      BotFather -> /newbot -> devsunetstock -> devsunsetstock_bot - > get api key 
 
 --------------------------------------------------------------------------
-reference
 
-- 파이썬으로 배우는 알고리즘 트레이딩
-
-https://wikidocs.net/book/110
-
-https://github.com/pystockhub/book
-
-
-- 손가락 하나 까딱하지 않는 주식 거래 시스템 구축
-
-https://www.youtube.com/watch?v=1lHzaihEb48&list=PLDtzZPtOGenaSknTbsb6x6L39V0VPz_rS
-
-https://github.com/programgarden/book
-
---------------------------------------------------------------------------
